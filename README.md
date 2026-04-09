@@ -39,11 +39,17 @@ A powerful, agentic WhatsApp bot integrating local LLMs via Ollama, along with e
 
 ## Running the Bot
 
-The project includes a convenient startup script to launch all services sequentially.
+The project includes convenient startup scripts to launch all services sequentially.
 
-Simply run:
+**On Windows:**
 ```cmd
 start_services.bat
+```
+
+**On Linux/macOS:**
+```bash
+chmod +x start_services.sh
+./start_services.sh
 ```
 
 **What this does:**
@@ -65,11 +71,12 @@ Once the bot is running, you can send the following commands in WhatsApp to inte
 - `/claude` - Toggle Claude Mode. Routes questions through the opened Claude.ai tab in Chrome.
 - `/reset` - Clear the conversation history for the current chat.
 
-**Note on Usage**: The bot is configured to natively reply in Direct Messages or specific whitelisted groups (e.g., "Nonsense"). If a prefix is configured (default: `!ai`), prefix your requests with `!ai` for the bot to respond.
+**Note on Usage**: The bot is configured to natively reply in Direct Messages or specific whitelisted groups. If a prefix is configured (default: `!ai`), prefix your requests with `!ai` for the bot to respond.
 
 ## Project Structure
 
-- `start_services.bat` - Launch script for the entire environment.
+- `start_services.bat` - Windows launch script.
+- `start_services.sh` - Linux/macOS launch script.
 - `server2.py` - Flask API backend serving tools and utilities.
 - `agent.py` - Core agent logic/testing utility.
 - `wabot/bot.js` - Main WhatsApp Web JS application and prompting logic.
