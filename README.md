@@ -1,4 +1,4 @@
-# ph3dGPT WhatsApp Bot
+# Ollama ph3dGPT FrontEnd and Ollama WhatsApp Bot
 
 A powerful, agentic WhatsApp bot integrating local LLMs via Ollama, along with experimental browser-based Claude.ai features. It features a dual-architecture with a Node.js frontend (WhatsApp Web JS) and a Python Flask backend for executing agentic tools like web search, file parsing, and system command execution.
 
