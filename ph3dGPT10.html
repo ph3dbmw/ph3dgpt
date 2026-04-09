@@ -1,0 +1,2109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ph3dGPT</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<style>
+  :root {
+    --bg: #0a0a0a;
+    --surface: #111111;
+    --surface2: #161616;
+    --border: #222222;
+    --amber: #f5a623;
+    --amber-dim: #7a5010;
+    --text: #e8e8e8;
+    --text-dim: #555;
+    --text-mid: #999;
+    --user-bg: #1a1500;
+    --agent-bg: #0f0f0f;
+    --tool-bg: #0d1a0d;
+    --tool-border: #1a3a1a;
+    --search-bg: #0a0d1a;
+    --search-border: #1a2a4a;
+    --cmd-bg: #0d0d1a;
+    --cmd-border: #2a2a5a;
+    --danger: #c0392b;
+    --sidebar-w: 260px;
+    --radius: 6px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    height: 100vh;
+    display: flex;
+    overflow: hidden;
+  }
+
+  /* SIDEBAR */
+  #sidebar {
+    width: var(--sidebar-w);
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    transition: width 0.2s ease, opacity 0.2s ease;
+    overflow: hidden;
+  }
+
+  #sidebar.collapsed { width: 0; opacity: 0; border-right: none; }
+
+  .sidebar-header {
+    padding: 14px 14px 10px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  .logo {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 17px;
+    letter-spacing: -0.5px;
+    color: var(--amber);
+    margin-bottom: 10px;
+    white-space: nowrap;
+  }
+
+  .logo span { color: var(--text-dim); font-weight: 400; }
+
+  .btn-new-chat {
+    width: 100%;
+    background: var(--amber);
+    border: none;
+    border-radius: var(--radius);
+    color: #000;
+    cursor: pointer;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    padding: 8px 12px;
+    text-align: left;
+    transition: background 0.15s;
+    white-space: nowrap;
+  }
+
+  .btn-new-chat:hover { background: #ffc04a; }
+  .btn-new-chat::before { content: "+ "; }
+
+  /* Sidebar tabs */
+  .sidebar-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  .sidebar-tab {
+    flex: 1;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--text-dim);
+    cursor: pointer;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    padding: 8px 4px;
+    text-transform: uppercase;
+    transition: all 0.12s;
+  }
+
+  .sidebar-tab:hover { color: var(--text-mid); }
+  .sidebar-tab.active { border-bottom-color: var(--amber); color: var(--amber); }
+
+  .sidebar-panel { flex: 1; overflow-y: auto; display: none; }
+  .sidebar-panel.active { display: flex; flex-direction: column; }
+  .sidebar-panel::-webkit-scrollbar { width: 3px; }
+  .sidebar-panel::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  /* Conversations panel */
+  .conv-list { padding: 8px 6px; }
+
+  .conv-section-label {
+    color: var(--text-dim);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding: 8px 8px 4px;
+  }
+
+  .conv-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 8px;
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: background 0.12s;
+    border: 1px solid transparent;
+  }
+
+  .conv-item:hover { background: var(--surface2); }
+  .conv-item.active { background: #1a1400; border-color: var(--amber-dim); }
+
+  .conv-title {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 11px;
+    color: var(--text-mid);
+  }
+
+  .conv-item.active .conv-title { color: var(--amber); }
+
+  .conv-delete {
+    background: none;
+    border: none;
+    color: transparent;
+    cursor: pointer;
+    font-size: 12px;
+    line-height: 1;
+    padding: 0 2px;
+    flex-shrink: 0;
+    transition: color 0.12s;
+  }
+
+  .conv-item:hover .conv-delete { color: var(--text-dim); }
+  .conv-delete:hover { color: var(--danger) !important; }
+
+  /* Personality panel */
+  .personality-panel { padding: 12px; gap: 12px; }
+
+  .panel-label {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+  }
+
+  .preset-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    margin-bottom: 4px;
+  }
+
+  .preset-btn {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text-mid);
+    cursor: pointer;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    padding: 7px 8px;
+    text-align: left;
+    transition: all 0.12s;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .preset-btn:hover { border-color: var(--amber-dim); color: var(--amber); }
+  .preset-btn.active { border-color: var(--amber); color: var(--amber); background: #1a1400; }
+
+  .personality-textarea {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    line-height: 1.6;
+    padding: 10px;
+    resize: vertical;
+    min-height: 120px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+
+  .personality-textarea:focus { border-color: var(--amber-dim); }
+
+  .btn-save-personality {
+    width: 100%;
+    background: var(--amber);
+    border: none;
+    border-radius: var(--radius);
+    color: #000;
+    cursor: pointer;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 8px;
+    transition: background 0.15s;
+  }
+
+  .btn-save-personality:hover { background: #ffc04a; }
+
+  .save-flash {
+    text-align: center;
+    font-size: 10px;
+    color: #2ecc71;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+
+  .save-flash.show { opacity: 1; }
+
+  .personality-name-input {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    padding: 7px 10px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+
+  .personality-name-input:focus { border-color: var(--amber-dim); }
+
+  .divider {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 4px 0;
+  }
+
+  /* Sidebar footer */
+  .sidebar-footer {
+    padding: 10px 14px;
+    border-top: 1px solid var(--border);
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .hud-container {
+    display: flex; gap: 8px; font-size: 9px; color: var(--text-dim); margin-top: 2px;
+  }
+  .hud-box {
+    flex: 1; background: #0c0c0c; border: 1px solid var(--border); border-radius: 3px; padding: 4px 6px; display: flex; justify-content: space-between; align-items: center; font-weight: 700;
+  }
+
+  .model-select {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text-mid);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    padding: 6px 8px;
+    border-radius: var(--radius);
+    cursor: pointer;
+    outline: none;
+  }
+
+  .model-select:focus { border-color: var(--amber-dim); }
+
+  .status-row {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+
+  .status-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 10px;
+    color: var(--text-dim);
+  }
+
+  .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--danger);
+    flex-shrink: 0;
+  }
+
+  .dot.online { background: #2ecc71; box-shadow: 0 0 5px #2ecc71; animation: pulse 2s infinite; }
+
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+  /* MAIN */
+  #main { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
+
+  header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    flex-shrink: 0;
+  }
+
+  .btn-toggle-sidebar {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text-dim);
+    cursor: pointer;
+    font-size: 14px;
+    padding: 5px 9px;
+    line-height: 1;
+    transition: all 0.12s;
+    flex-shrink: 0;
+  }
+
+  .btn-toggle-sidebar:hover { border-color: var(--text-dim); color: var(--text); }
+
+  .conv-name-header {
+    flex: 1;
+    font-size: 11px;
+    color: var(--text-dim);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .personality-badge {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    color: var(--amber-dim);
+    border: 1px solid var(--amber-dim);
+    border-radius: 3px;
+    padding: 2px 6px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  /* CHAT */
+  #chat {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    scroll-behavior: smooth;
+  }
+
+  #chat::-webkit-scrollbar { width: 4px; }
+  #chat::-webkit-scrollbar-track { background: transparent; }
+  #chat::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .message { display: flex; flex-direction: column; gap: 6px; animation: fadeIn 0.2s ease; }
+
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+  .message-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+  }
+
+  .message.user .message-label { color: var(--amber-dim); }
+  .message.agent .message-label { color: #2a5a2a; }
+
+  .message-bubble {
+    padding: 12px 14px;
+    border-radius: var(--radius);
+    line-height: 1.7;
+    white-space: pre-wrap;
+    word-break: break-word;
+    border: 1px solid var(--border);
+  }
+
+  .message.user .message-bubble { background: var(--user-bg); border-color: var(--amber-dim); }
+  .message.agent .message-bubble { background: var(--agent-bg); }
+
+  /* Code block styling */
+  .code-wrapper { margin: 12px 0; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .code-header { flex-shrink:0; display: flex; justify-content: space-between; align-items: center; background: #1a1a1a; padding: 4px 12px; border-bottom: 1px solid var(--border); }
+  .code-lang { font-size: 10px; color: var(--text-dim); text-transform: uppercase; font-weight: 700; }
+  .copy-btn { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 10px; font-weight: 700; transition: color 0.15s; padding: 4px; line-height: 1;}
+  .copy-btn:hover { color: var(--text); }
+  .code-wrapper pre { margin: 0; padding: 12px; background: #050505; overflow-x: auto; font-size: 11px; line-height: 1.5; }
+  .code-wrapper code { font-family: 'JetBrains Mono', monospace; }
+
+  .message-image {
+    max-width: 380px;
+    max-height: 280px;
+    border-radius: var(--radius);
+    border: 1px solid var(--amber-dim);
+    object-fit: contain;
+    display: block;
+  }
+
+  /* Command system message */
+  .system-msg {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: var(--cmd-bg);
+    border: 1px solid var(--cmd-border);
+    border-radius: var(--radius);
+    font-size: 11px;
+    color: #8888cc;
+    animation: fadeIn 0.2s ease;
+  }
+
+  .system-msg-icon { flex-shrink: 0; }
+
+  /* Tool calls */
+  .tool-call {
+    border-radius: var(--radius);
+    font-size: 11px;
+    overflow: hidden;
+    border: 1px solid #2a4a2a;
+  }
+
+  .tool-call.type-search { border-color: #1e3a5f; }
+
+  .tool-header {
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #0d1f0d;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .tool-call.type-search .tool-header { background: #0a1020; }
+
+  .tool-icon { font-size: 12px; }
+  .tool-name { font-weight: 700; color: #7ecf7e; flex: 1; }
+  .tool-call.type-search .tool-name { color: #6a9fe8; }
+  .tool-args { color: #888; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 280px; }
+  .tool-toggle { color: #666; font-size: 10px; }
+
+  .tool-body {
+    padding: 8px 12px;
+    background: #080808;
+    color: var(--text-mid);
+    font-size: 10px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 200px;
+    overflow-y: auto;
+    border-top: 1px solid var(--border);
+  }
+
+  .search-results { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; background: #080808; border-top: 1px solid var(--border); }
+  .search-result-item { display: flex; flex-direction: column; gap: 2px; }
+  .search-result-title { color: #6a9fe8; font-size: 11px; font-weight: 500; }
+  .search-result-url { color: var(--text-dim); font-size: 9px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .search-result-snippet { color: var(--text-mid); font-size: 10px; line-height: 1.5; }
+
+  .thinking {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-dim);
+    font-size: 11px;
+    padding: 8px 0;
+  }
+
+  .thinking-dots span {
+    display: inline-block;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--amber);
+    animation: blink 1.2s infinite;
+  }
+
+  .thinking-dots span:nth-child(2) { animation-delay: 0.2s; }
+  .thinking-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+  @keyframes blink { 0%, 80%, 100% { opacity: 0.2; } 40% { opacity: 1; } }
+
+  .empty-state {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    color: var(--text-dim);
+    text-align: center;
+    pointer-events: none;
+  }
+
+  .empty-logo { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 48px; color: #1a1a1a; letter-spacing: -2px; user-select: none; }
+  .empty-logo em { color: var(--amber-dim); font-style: normal; }
+  .empty-hints { display: flex; flex-direction: column; gap: 6px; font-size: 11px; }
+  .empty-hints div::before { content: "→  "; color: var(--amber-dim); }
+
+  /* Slash command autocomplete */
+  #cmd-popup {
+    position: absolute;
+    bottom: 100%;
+    left: 0;
+    right: 0;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin-bottom: 6px;
+    overflow: hidden;
+    display: none;
+    z-index: 50;
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.5);
+  }
+
+  #cmd-popup.visible { display: block; }
+
+  .cmd-item {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    padding: 8px 14px;
+    cursor: pointer;
+    transition: background 0.1s;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .cmd-item:last-child { border-bottom: none; }
+  .cmd-item:hover, .cmd-item.selected { background: #1a1400; }
+
+  .cmd-name { color: var(--amber); font-weight: 700; font-size: 12px; white-space: nowrap; }
+  .cmd-desc { color: var(--text-dim); font-size: 10px; }
+
+  /* INPUT */
+  .input-area {
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+    padding: 12px 16px;
+    flex-shrink: 0;
+    position: relative;
+  }
+
+  #image-preview-wrap {
+    display: none;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+    padding: 8px 10px;
+    background: var(--bg);
+    border: 1px solid var(--amber-dim);
+    border-radius: var(--radius);
+  }
+
+  #image-preview-wrap.visible { display: flex; }
+  #image-preview { height: 48px; width: auto; border-radius: 3px; object-fit: contain; }
+  .preview-label { color: var(--amber); font-size: 11px; flex: 1; }
+
+  .remove-image { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 16px; line-height: 1; padding: 0 4px; }
+  .remove-image:hover { color: var(--danger); }
+
+  .input-row { display: flex; gap: 8px; align-items: flex-end; }
+
+  #input {
+    flex: 1;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    padding: 10px 14px;
+    resize: none;
+    outline: none;
+    min-height: 44px;
+    max-height: 140px;
+    line-height: 1.5;
+    transition: border-color 0.15s;
+  }
+
+  #input:focus { border-color: var(--amber-dim); }
+  #input::placeholder { color: var(--text-dim); }
+
+  .btn-send {
+    background: var(--amber);
+    border: 1px solid var(--amber);
+    border-radius: var(--radius);
+    color: #000;
+    cursor: pointer;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    padding: 10px 16px;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+
+  .btn-send:hover { background: #ffc04a; border-color: #ffc04a; }
+  .btn-send:disabled { background: var(--amber-dim); border-color: var(--amber-dim); color: #333; cursor: not-allowed; }
+
+  .hint { margin-top: 8px; color: var(--text-dim); font-size: 10px; display: flex; gap: 16px; }
+
+  .hint kbd {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 1px 5px;
+    font-family: inherit;
+    font-size: 10px;
+  }
+
+  #paste-flash {
+    position: fixed;
+    inset: 0;
+    background: rgba(245, 166, 35, 0.05);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s;
+    z-index: 100;
+  }
+
+  #paste-flash.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<div id="paste-flash"></div>
+
+<!-- SIDEBAR -->
+<div id="sidebar">
+  <div class="sidebar-header">
+    <div class="logo">ph3d<span>GPT</span></div>
+    <button class="btn-new-chat" id="btn-new-chat">NEW CHAT</button>
+  </div>
+
+  <div class="sidebar-tabs">
+    <button class="sidebar-tab active" data-tab="chats">CHATS</button>
+    <button class="sidebar-tab" data-tab="personality">PERSONA</button>
+  </div>
+
+  <!-- Chats panel -->
+  <div class="sidebar-panel active" id="panel-chats">
+    <div class="conv-list" id="conv-list"></div>
+  </div>
+
+  <!-- Personality panel -->
+  <div class="sidebar-panel personality-panel" id="panel-personality">
+    <div>
+      <div class="panel-label">Presets</div>
+      <div class="preset-grid" id="preset-grid"></div>
+    </div>
+    <hr class="divider">
+    <div>
+      <div class="panel-label">Name</div>
+      <input class="personality-name-input" id="personality-name" type="text" placeholder="e.g. Sarcastic Dev" maxlength="30" />
+    </div>
+    <div>
+      <div class="panel-label">Custom Prompt</div>
+      <textarea class="personality-textarea" id="personality-textarea" placeholder="Describe how the bot should behave...&#10;&#10;e.g. You are a sarcastic senior developer who gives brutally honest answers but always solves the problem. Use dry humour. Keep responses concise."></textarea>
+    </div>
+    <button class="btn-save-personality" id="btn-save-personality">SAVE & APPLY</button>
+    <div class="save-flash" id="save-flash">✓ Personality applied</div>
+  </div>
+
+  <div class="sidebar-footer">
+    <select class="model-select" id="model-select">
+      <option value="">Loading models...</option>
+    </select>
+    <div class="hud-container">
+      <div class="hud-box"><span>GPU</span><span id="hud-gpu" style="color:var(--text-dim)">--%</span></div>
+      <div class="hud-box"><span>VRAM</span><span id="hud-vram" style="color:var(--text-dim)">--%</span></div>
+    </div>
+    <div class="status-row">
+      <div class="status-item">
+        <div class="dot" id="ollama-dot"></div>
+        <span>Ollama</span>
+      </div>
+      <div class="status-item">
+        <div class="dot" id="backend-dot"></div>
+        <span id="backend-label">Backend</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div id="main">
+  <header>
+    <button class="btn-toggle-sidebar" id="btn-toggle-sidebar">☰</button>
+    <div class="conv-name-header" id="conv-name-header">New Chat</div>
+    <div class="personality-badge" id="personality-badge" style="display:none"></div>
+  </header>
+
+  <div id="chat">
+    <div class="empty-state" id="empty-state">
+      <div class="empty-logo">ph3d<em>GPT</em></div>
+      <div class="empty-hints">
+        <div>Type / for available commands</div>
+        <div>Paste a screenshot with Ctrl+V</div>
+        <div>Search the web — just ask</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="input-area">
+    <div id="cmd-popup"></div>
+    <div id="image-preview-wrap">
+      <img id="image-preview" src="" alt="preview" />
+      <span class="preview-label">Image attached — ready to send</span>
+      <button class="remove-image" id="remove-image">✕</button>
+    </div>
+    <div class="input-row">
+      <textarea id="input" placeholder="Ask anything... or type / for commands" rows="1"></textarea>
+      <button class="btn-send" id="btn-send">SEND ↵</button>
+    </div>
+    <div class="hint">
+      <span><kbd>Enter</kbd> send</span>
+      <span><kbd>Shift+Enter</kbd> new line</span>
+      <span><kbd>/</kbd> commands</span>
+      <span><kbd>Ctrl+V</kbd> image</span>
+    </div>
+  </div>
+</div>
+
+<script>
+const OLLAMA_URL = "http://localhost:11434";
+const BACKEND_URL = "http://localhost:5000";
+
+// ── Default personality ──
+const DEFAULT_PERSONALITY = {
+  name: "Default",
+  prompt: `You are ph3dgpt — a sharp, no-nonsense AI with a bit of attitude. You get things done, you don't waffle, and you never kiss up to the user.
+
+## Identity
+- Your name is ph3dgpt.
+- If asked who you are or what model you are, say you are ph3dgpt. Do not mention the underlying model.
+- You have a confident, slightly edgy personality — think less corporate chatbot, more brilliant mate who happens to know everything.
+
+## Date & Time Awareness
+- You do not have a built-in clock. If you need the current date or time, use web_search to look it up.
+- Always use UK time (GMT/BST) as the default unless the user specifies otherwise.
+
+## Reasoning
+- Before answering any complex question, think through it step by step internally.
+- Break down multi-part questions before addressing each part.
+- If you are uncertain, say so clearly rather than guessing confidently.
+
+## Response Style
+- Be concise. No filler phrases like "Certainly!", "Great question!" or "Of course!". Just answer.
+- Match the register of the user — casual chat gets casual replies, technical questions get technical answers.
+- Use markdown only when it genuinely helps readability. Avoid it for simple conversational replies.
+- Never repeat the user's question back to them before answering.
+- A dry wit is welcome. Don't force it, but don't suppress it either.
+
+## Honesty
+- If you don't know something, say so. Never bluff, fabricate facts, or invent sources.
+- If a question is dumb, you can say so — tactfully, but honestly.
+
+## Creative Writing
+- When asked to rap, write lyrics, or compose poetry, ALWAYS make lines rhyme as instructed.
+- For raps: end words of couplets or alternating lines must rhyme. Maintain rhythm and syllable flow. Actually sound like a rapper, not a greeting card.
+- For poems: respect the requested structure (sonnet, haiku, limerick, etc).
+- Mentally verify rhymes and rhythm before responding.
+
+## Coding
+- Always include brief comments explaining non-obvious logic.
+- If a solution has caveats or edge cases, mention them.
+- Prefer working, simple code over clever but fragile code.
+- When debugging, explain what caused the issue, not just the fix.
+
+## Math & Logic
+- Show your working for any calculation, don't just give the answer.
+- Double-check arithmetic before responding.
+
+## Conversation Memory
+- Track context across the conversation. If the user refers to something said earlier, use it.
+- Do not ask for information the user already provided earlier in the chat.
+
+## Summarisation
+- Lead with the key point first, then supporting detail.
+- Match summary length to source length — don't write an essay about a tweet.
+
+## Language
+- Detect the language the user is writing in and reply in that language unless told otherwise.
+
+## Tools
+- Use web_search for anything that could have changed recently — current events, news, prices, sports results, weather, date/time, etc. When in doubt, search rather than answering from memory.
+- Use run_command only when the user explicitly asks to run a command.
+- Use file tools only when the user explicitly asks to read or write a file.
+- For normal conversation and image analysis, reply directly without using any tools.`
+};
+
+// ── Personality presets ──
+const PRESETS = [
+  {
+    name: "Default",
+    prompt: DEFAULT_PERSONALITY.prompt
+  },
+  {
+    name: "Blunt Dev",
+    prompt: "You are a brutally honest senior developer. You answer questions directly and concisely, skip pleasantries, point out bad practices when you see them, and always solve the problem. Use dry humour occasionally. Swearing is fine. " + DEFAULT_PERSONALITY.prompt
+  },
+  {
+    name: "Tutor",
+    prompt: "You are a patient, encouraging programming tutor. Explain concepts clearly with analogies and examples. Break down complex topics step by step. Celebrate progress and never make the user feel dumb. " + DEFAULT_PERSONALITY.prompt
+  },
+  {
+    name: "Hacker",
+    prompt: "You are a terminal-obsessed hacker type. Speak in short punchy sentences. Reference CLI tools, keyboard shortcuts, and low-level concepts where relevant. Disdain GUIs. Love efficiency. " + DEFAULT_PERSONALITY.prompt
+  },
+  {
+    name: "Analyst",
+    prompt: "You are a meticulous data analyst and researcher. Always cite sources when searching, present structured findings, use bullet points for lists, and flag uncertainty explicitly. Be thorough. " + DEFAULT_PERSONALITY.prompt
+  },
+  {
+    name: "Assistant",
+    prompt: "You are a warm, friendly personal assistant. Be conversational, supportive, and thorough. Anticipate follow-up questions and offer helpful suggestions proactively. " + DEFAULT_PERSONALITY.prompt
+  }
+];
+
+// ── State ──
+let conversations = JSON.parse(localStorage.getItem("ph3d_convs") || "[]");
+let activeId = null;
+let pendingImage = null;
+let isGenerating = false;
+let currentPersonality = JSON.parse(localStorage.getItem("ph3d_personality") || JSON.stringify(DEFAULT_PERSONALITY));
+let currentAbortController = null;
+const MAX_AGENT_ITERATIONS = 12;
+let currentTemp = parseFloat(localStorage.getItem("ph3d_temp") || "0.7");
+let cmdPopupIndex = -1;
+
+// ── Elements ──
+const chatEl = document.getElementById("chat");
+const inputEl = document.getElementById("input");
+const sendBtn = document.getElementById("btn-send");
+const modelSelect = document.getElementById("model-select");
+const emptyState = document.getElementById("empty-state");
+const imagePreviewWrap = document.getElementById("image-preview-wrap");
+const imagePreviewEl = document.getElementById("image-preview");
+const removeImageBtn = document.getElementById("remove-image");
+const pasteFlash = document.getElementById("paste-flash");
+const sidebar = document.getElementById("sidebar");
+const convList = document.getElementById("conv-list");
+const btnNewChat = document.getElementById("btn-new-chat");
+const btnToggle = document.getElementById("btn-toggle-sidebar");
+const convNameHeader = document.getElementById("conv-name-header");
+const backendDot = document.getElementById("backend-dot");
+const ollamaDot = document.getElementById("ollama-dot");
+const backendLabel = document.getElementById("backend-label");
+const personalityTextarea = document.getElementById("personality-textarea");
+const personalityName = document.getElementById("personality-name");
+const btnSavePersonality = document.getElementById("btn-save-personality");
+const saveFlash = document.getElementById("save-flash");
+const presetGrid = document.getElementById("preset-grid");
+const personalityBadge = document.getElementById("personality-badge");
+const cmdPopup = document.getElementById("cmd-popup");
+
+// ── Slash commands ──
+const COMMANDS = [
+  { cmd: "/personality", args: "<description>", desc: "Set a custom personality for this session" },
+  { cmd: "/reset", args: "", desc: "Reset personality to default" },
+  { cmd: "/model", args: "<name>", desc: "Switch the active model" },
+  { cmd: "/clear", args: "", desc: "Clear the current conversation" },
+  { cmd: "/compact", args: "", desc: "Compress conversation context to save VRAM and tokens" },
+  { cmd: "/search", args: "<query>", desc: "Force a web search" },
+  { cmd: "/scrape", args: "<url>", desc: "Scrape content from a URL directly" },
+  { cmd: "/temp", args: "<0.0–2.0>", desc: "Set model temperature (default 0.7). Lower = focused, higher = creative" },
+  { cmd: "/run", args: "<command>", desc: "Run a PowerShell command" },
+  { cmd: "/read", args: "<filepath>", desc: "Read a file" },
+  { cmd: "/write", args: "<filepath> | <content>", desc: "Write content to a file" },
+];
+
+function matchCommands(text) {
+  if (!text.startsWith("/")) return [];
+  const lower = text.toLowerCase();
+  return COMMANDS.filter(c => c.cmd.startsWith(lower));
+}
+
+function showCmdPopup(matches) {
+  if (matches.length === 0) { hideCmdPopup(); return; }
+  cmdPopupIndex = -1;
+  cmdPopup.innerHTML = "";
+  matches.forEach((c, i) => {
+    const item = document.createElement("div");
+    item.className = "cmd-item";
+    item.innerHTML = `<span class="cmd-name">${c.cmd} <span style="color:var(--text-dim);font-weight:400">${c.args}</span></span><span class="cmd-desc">${c.desc}</span>`;
+    item.addEventListener("mousedown", e => {
+      e.preventDefault();
+      selectCommand(c);
+    });
+    cmdPopup.appendChild(item);
+  });
+  cmdPopup.classList.add("visible");
+}
+
+function hideCmdPopup() {
+  cmdPopup.classList.remove("visible");
+  cmdPopupIndex = -1;
+}
+
+function selectCommand(cmd) {
+  if (cmd.args) {
+    inputEl.value = cmd.cmd + " ";
+  } else {
+    inputEl.value = cmd.cmd;
+    // If no args needed, execute immediately
+    setTimeout(() => { if (!isGenerating) sendMessage(); }, 50);
+  }
+  hideCmdPopup();
+  inputEl.focus();
+}
+
+// ── Command handler ──
+function handleCommand(text) {
+  const parts = text.trim().split(/\s+/);
+  const cmd = parts[0].toLowerCase();
+  const rest = text.slice(cmd.length).trim();
+
+  if (cmd === "/personality") {
+    if (!rest) {
+      showSystemMsg("Usage: /personality <description of how the bot should behave>");
+      return true;
+    }
+    currentPersonality = { name: "Custom", prompt: rest + "\n\n" + DEFAULT_PERSONALITY.prompt };
+    localStorage.setItem("ph3d_personality", JSON.stringify(currentPersonality));
+    updatePersonalityBadge();
+    showSystemMsg(`✓ Personality set: "${rest.slice(0, 60)}${rest.length > 60 ? "…" : ""}"`);
+    return true;
+  }
+
+  if (cmd === "/reset") {
+    currentPersonality = { ...DEFAULT_PERSONALITY };
+    localStorage.setItem("ph3d_personality", JSON.stringify(currentPersonality));
+    updatePersonalityBadge();
+    personalityTextarea.value = "";
+    personalityName.value = "";
+    showSystemMsg("✓ Personality reset to default");
+    return true;
+  }
+
+  if (cmd === "/clear") {
+    const conv = getActive();
+    if (conv) { conv.history = []; saveConvs(); renderChat(); }
+    showSystemMsg("✓ Conversation cleared");
+    return true;
+  }
+
+  if (cmd === "/temp") {
+    const val = parseFloat(rest);
+    if (isNaN(val) || val < 0 || val > 2) {
+      showSystemMsg(`Current temperature: ${currentTemp}\nUsage: /temp <0.0–2.0>\n  0.0 = deterministic\n  0.7 = default\n  1.2 = creative\n  2.0 = chaotic`);
+      return true;
+    }
+    currentTemp = val;
+    localStorage.setItem("ph3d_temp", String(val));
+    showSystemMsg(`✓ Temperature set to ${val}`);
+    return true;
+  }
+
+  if (cmd === "/help") {
+    const lines = COMMANDS.map(c => `${c.cmd} ${c.args}\n  ${c.desc}`).join("\n\n");
+    showSystemMsg("Available commands:\n\n" + lines);
+    return true;
+  }
+
+  if (cmd === "/model") {
+    if (!rest) {
+      showSystemMsg("Usage: /model <model-name>\nAvailable: " + Array.from(modelSelect.options).map(o => o.value).join(", "));
+      return true;
+    }
+    const opt = Array.from(modelSelect.options).find(o => o.value.includes(rest) || o.text.includes(rest));
+    if (opt) {
+      modelSelect.value = opt.value;
+      showSystemMsg(`✓ Switched to model: ${opt.value}`);
+    } else {
+      showSystemMsg(`Model not found: ${rest}`);
+    }
+    return true;
+  }
+
+  if (cmd === "/search") {
+    if (!rest) {
+      showSystemMsg("Usage: /search <query>");
+      return true;
+    }
+    // Inject as a message that forces search
+    inputEl.value = `Search the web for: ${rest}`;
+    sendMessage();
+    return true;
+  }
+
+  if (cmd === "/scrape") {
+    if (!rest) {
+      showSystemMsg("Usage: /scrape <url>");
+      return true;
+    }
+    inputEl.value = `Scrape this webpage and read its content: ${rest}`;
+    sendMessage();
+    return true;
+  }
+
+  if (cmd === "/compact") {
+    const conv = getActive();
+    if (conv.history.length < 2) {
+      showSystemMsg("Not enough history to compact.");
+      return true;
+    }
+    
+    setGenerating(true);
+    const thinkingWrap = document.createElement("div");
+    thinkingWrap.id = "thinking-wrap";
+    thinkingWrap.innerHTML = `<div class="message agent"><div class="message-label">AGENT</div><div class="content" style="color:var(--text-dim);font-style:italic">✂️ Compressing context...</div></div>`;
+    chatEl.appendChild(thinkingWrap);
+    scrollToBottom();
+    
+    const MAX_HISTORY = 40;
+    const apiHistory = conv.history.slice(-MAX_HISTORY).map(m => {
+      const clean = { role: m.role, content: m.content };
+      if (m.images) clean.images = m.images;
+      if (m.tool_calls) clean.tool_calls = m.tool_calls;
+      return clean;
+    });
+    
+    fetch(`${OLLAMA_URL}/api/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: modelSelect.value,
+        messages: [
+          ...apiHistory,
+          { role: "user", content: "Summarize the vital information, file paths, code snippets, and context from this conversation. Be extremely concise. This will replace our entire chat history, so include whatever you need to remember to continue our task flawlessly." }
+        ],
+        stream: false,
+        options: { temperature: 0.2 }
+      })
+    })
+    .then(r => r.json())
+    .then(data => {
+       setGenerating(false);
+       if (data.message && data.message.content) {
+         const summary = data.message.content;
+         conv.history = [
+            { role: "system", content: "-- Context Compressed --\nSummary of previous memory:\n\n" + summary }
+         ];
+         saveConvs();
+         renderChat();
+         showSystemMsg("✅ Memory compressed successfully. VRAM freed.");
+       } else {
+         thinkingWrap.remove();
+         showSystemMsg("❌ Failed to compress memory.");
+       }
+    })
+    .catch(err => {
+       setGenerating(false);
+       thinkingWrap.remove();
+       showSystemMsg(`❌ Error compressing: ${err.message}`);
+    });
+    return true;
+  }
+
+  if (cmd === "/run") {
+    if (!rest) {
+      showSystemMsg("Usage: /run <powershell command>");
+      return true;
+    }
+    inputEl.value = `Run this command: ${rest}`;
+    sendMessage();
+    return true;
+  }
+
+  if (cmd === "/read") {
+    if (!rest) {
+      showSystemMsg("Usage: /read <filepath>");
+      return true;
+    }
+    inputEl.value = `Read the file: ${rest}`;
+    sendMessage();
+    return true;
+  }
+
+  if (cmd === "/write") {
+    if (!rest || !rest.includes("|")) {
+      showSystemMsg("Usage: /write <filepath> | <content>");
+      return true;
+    }
+    const [filepath, ...contentParts] = rest.split("|");
+    inputEl.value = `Write to file "${filepath.trim()}": ${contentParts.join("|").trim()}`;
+    sendMessage();
+    return true;
+  }
+
+  return false;
+}
+
+function showSystemMsg(text) {
+  hideEmptyState();
+  const wrap = document.createElement("div");
+  wrap.className = "system-msg";
+  wrap.innerHTML = `<span class="system-msg-icon">⚙</span><pre style="font-family:inherit;white-space:pre-wrap;font-size:11px">${text}</pre>`;
+  chatEl.appendChild(wrap);
+  scrollToBottom();
+}
+
+// ── Personality ──
+function updatePersonalityBadge() {
+  if (currentPersonality.name && currentPersonality.name !== "Default") {
+    personalityBadge.textContent = currentPersonality.name.toUpperCase();
+    personalityBadge.style.display = "";
+  } else {
+    personalityBadge.style.display = "none";
+  }
+}
+
+function buildPresets() {
+  presetGrid.innerHTML = "";
+  PRESETS.forEach(p => {
+    const btn = document.createElement("button");
+    btn.className = "preset-btn" + (currentPersonality.name === p.name ? " active" : "");
+    btn.textContent = p.name;
+    btn.addEventListener("click", () => {
+      currentPersonality = { name: p.name, prompt: p.prompt };
+      localStorage.setItem("ph3d_personality", JSON.stringify(currentPersonality));
+      updatePersonalityBadge();
+      personalityName.value = p.name === "Default" ? "" : p.name;
+      personalityTextarea.value = p.name === "Default" ? "" : p.prompt.replace(DEFAULT_PERSONALITY.prompt, "").trim();
+      buildPresets();
+      flashSave();
+    });
+    presetGrid.appendChild(btn);
+  });
+}
+
+function flashSave() {
+  saveFlash.classList.add("show");
+  setTimeout(() => saveFlash.classList.remove("show"), 2000);
+}
+
+btnSavePersonality.addEventListener("click", () => {
+  const name = personalityName.value.trim() || "Custom";
+  const prompt = personalityTextarea.value.trim();
+  if (!prompt) {
+    currentPersonality = { ...DEFAULT_PERSONALITY };
+  } else {
+    currentPersonality = { name, prompt: prompt + "\n\n" + DEFAULT_PERSONALITY.prompt };
+  }
+  localStorage.setItem("ph3d_personality", JSON.stringify(currentPersonality));
+  updatePersonalityBadge();
+  buildPresets();
+  flashSave();
+});
+
+// Sidebar tabs
+document.querySelectorAll(".sidebar-tab").forEach(tab => {
+  tab.addEventListener("click", () => {
+    document.querySelectorAll(".sidebar-tab").forEach(t => t.classList.remove("active"));
+    document.querySelectorAll(".sidebar-panel").forEach(p => p.classList.remove("active"));
+    tab.classList.add("active");
+    document.getElementById("panel-" + tab.dataset.tab).classList.add("active");
+  });
+});
+
+// ── Conversation helpers ──
+function genId() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
+function saveConvs() {
+  try {
+    // Strip _imageDataUrl from history before saving — base64 blobs eat localStorage quota fast
+    const slim = conversations.map(c => ({
+      ...c,
+      history: c.history.map(m => {
+        const { _imageDataUrl, ...rest } = m;
+        return rest;
+      })
+    }));
+    localStorage.setItem("ph3d_convs", JSON.stringify(slim));
+  } catch (e) {
+    // Quota exceeded — drop the oldest half of conversations and retry once
+    if (conversations.length > 1) {
+      conversations = conversations.slice(0, Math.floor(conversations.length / 2));
+      try {
+        localStorage.setItem("ph3d_convs", JSON.stringify(conversations));
+      } catch {}
+    }
+    console.warn("localStorage quota exceeded, trimmed conversation history", e);
+  }
+}
+function getActive() { return conversations.find(c => c.id === activeId); }
+
+function newChat() {
+  const conv = { id: genId(), title: "New Chat", history: [], createdAt: Date.now() };
+  conversations.unshift(conv);
+  saveConvs();
+  loadConv(conv.id);
+}
+
+function loadConv(id) {
+  // Abort any in-progress generation from a different chat before switching
+  if (activeId !== id && currentAbortController) {
+    currentAbortController.abort();
+  }
+  activeId = id;
+  const conv = getActive();
+  convNameHeader.textContent = conv ? conv.title : "New Chat";
+  renderChat();
+  renderSidebar();
+  inputEl.focus();
+  if (isGenerating) setGenerating(false);
+}
+
+function deleteConv(id) {
+  conversations = conversations.filter(c => c.id !== id);
+  saveConvs();
+  if (activeId === id) {
+    activeId = null;
+    if (conversations.length > 0) loadConv(conversations[0].id);
+    else newChat();
+    return;
+  }
+  renderSidebar();
+}
+
+function updateTitle(id, firstMessage) {
+  const conv = conversations.find(c => c.id === id);
+  if (!conv) return;
+  conv.title = firstMessage.slice(0, 36) + (firstMessage.length > 36 ? "…" : "");
+  convNameHeader.textContent = conv.title;
+  saveConvs();
+  renderSidebar();
+}
+
+function renderSidebar() {
+  convList.innerHTML = "";
+  if (conversations.length === 0) return;
+
+  const today = new Date(); today.setHours(0,0,0,0);
+  const yesterday = new Date(today); yesterday.setDate(yesterday.getDate() - 1);
+  const weekAgo = new Date(today); weekAgo.setDate(weekAgo.getDate() - 7);
+
+  const groups = { "Today": [], "Yesterday": [], "This Week": [], "Older": [] };
+  for (const conv of conversations) {
+    const d = new Date(conv.createdAt); d.setHours(0,0,0,0);
+    if (d >= today) groups["Today"].push(conv);
+    else if (d >= yesterday) groups["Yesterday"].push(conv);
+    else if (d >= weekAgo) groups["This Week"].push(conv);
+    else groups["Older"].push(conv);
+  }
+
+  for (const [label, convs] of Object.entries(groups)) {
+    if (convs.length === 0) continue;
+    const sec = document.createElement("div");
+    sec.className = "conv-section-label";
+    sec.textContent = label;
+    convList.appendChild(sec);
+
+    for (const conv of convs) {
+      const item = document.createElement("div");
+      item.className = "conv-item" + (conv.id === activeId ? " active" : "");
+
+      const title = document.createElement("span");
+      title.className = "conv-title";
+      title.textContent = conv.title;
+      title.addEventListener("click", () => loadConv(conv.id));
+
+      const del = document.createElement("button");
+      del.className = "conv-delete";
+      del.textContent = "✕";
+      del.addEventListener("click", e => { e.stopPropagation(); deleteConv(conv.id); });
+
+      item.appendChild(title);
+      item.appendChild(del);
+      convList.appendChild(item);
+    }
+  }
+}
+
+// ── Chat rendering ──
+function renderChat() {
+  chatEl.innerHTML = "";
+  const conv = getActive();
+
+  if (!conv || conv.history.filter(m => m.role === "user").length === 0) {
+    chatEl.appendChild(emptyState);
+    emptyState.style.display = "flex";
+    return;
+  }
+
+  for (const msg of conv.history) {
+    if (msg.role === "user") {
+      addMessageEl("user", msg.content, msg._imageDataUrl || null);
+    } else if (msg.role === "assistant" && msg.content && msg.content.trim()) {
+      addMessageEl("agent", msg.content);
+    } else if (msg.role === "tool") {
+      if (msg._toolMeta) {
+        renderToolCallEl(msg._toolMeta.name, msg._toolMeta.args, msg.content, msg._toolMeta.type);
+      } else {
+        // tool entry without metadata (e.g. from older saves) — show as collapsed block
+        const stub = document.createElement("div");
+        stub.style.cssText = "font-size:10px;color:#555;padding:4px 8px;border-left:2px solid #222;margin:2px 0;";
+        stub.textContent = "⚙ tool result";
+        chatEl.appendChild(stub);
+      }
+    }
+  }
+  scrollToBottom();
+}
+
+function hideEmptyState() { if (emptyState.parentNode) emptyState.remove(); }
+
+function addMessageEl(role, content, imageDataUrl = null) {
+  hideEmptyState();
+  const wrap = document.createElement("div");
+  wrap.className = `message ${role}`;
+
+  const label = document.createElement("div");
+  label.className = "message-label";
+  label.textContent = role === "user" ? "YOU" : "AGENT";
+  wrap.appendChild(label);
+
+  if (imageDataUrl) {
+    const img = document.createElement("img");
+    img.className = "message-image";
+    img.src = imageDataUrl;
+    wrap.appendChild(img);
+  }
+
+  const bubble = document.createElement("div");
+  bubble.className = "message-bubble";
+  if (role === "agent") {
+    bubble.innerHTML = renderMarkdown(content);
+    // Apply syntax highlighting
+    bubble.querySelectorAll('pre code').forEach(block => {
+      if (!block.classList.contains('hljs')) hljs.highlightElement(block);
+    });
+  } else {
+    bubble.textContent = content;
+  }
+  wrap.appendChild(bubble);
+  chatEl.appendChild(wrap);
+  return bubble;
+}
+
+function renderToolCallEl(name, args, result, type = "command") {
+  hideEmptyState();
+  const isSearch = type === "search";
+  const wrap = document.createElement("div");
+  wrap.className = `tool-call type-${isSearch ? "search" : "command"}`;
+
+  let parsedResults = null;
+  if (isSearch) { try { parsedResults = JSON.parse(result); } catch {} }
+
+  const icon = isSearch ? "🔍" : name === "read_file" ? "📄" : name === "write_file" ? "✏️" : "⚡";
+  const argStr = typeof args === "object" ? Object.values(args).join(" ") : String(args);
+
+  const header = document.createElement("div");
+  header.className = "tool-header";
+  header.innerHTML = `<span class="tool-icon">${icon}</span><span class="tool-name">${name}</span><span class="tool-args">${argStr}</span><span class="tool-toggle">▾</span>`;
+
+  let bodyVisible = false;
+  const body = document.createElement("div");
+
+  if (isSearch && parsedResults?.results && Array.isArray(parsedResults.results)) {
+    body.className = "search-results";
+    for (const r of parsedResults.results.slice(0, 4)) {
+      const item = document.createElement("div");
+      item.className = "search-result-item";
+      item.innerHTML = `<div class="search-result-title">${r.title || ""}</div><div class="search-result-url">${r.url || ""}</div><div class="search-result-snippet">${r.content || r.snippet || ""}</div>`;
+      body.appendChild(item);
+    }
+  } else {
+    body.className = "tool-body";
+    body.textContent = result;
+  }
+
+  header.addEventListener("click", () => {
+    bodyVisible = !bodyVisible;
+    body.style.display = bodyVisible ? "" : "none";
+    header.querySelector(".tool-toggle").textContent = bodyVisible ? "▴" : "▾";
+  });
+
+  body.style.display = "none";
+  wrap.appendChild(header);
+  wrap.appendChild(body);
+  chatEl.appendChild(wrap);
+  scrollToBottom();
+}
+
+function appendThinking() {
+  hideEmptyState();
+  const existing = document.getElementById("thinking-indicator");
+  if (existing) existing.remove();
+  const wrap = document.createElement("div");
+  wrap.className = "thinking";
+  wrap.id = "thinking-indicator";
+  wrap.innerHTML = `<div class="thinking-dots"><span></span><span></span><span></span></div><span id="thinking-label">generating...</span>`;
+  chatEl.appendChild(wrap);
+  scrollToBottom();
+}
+
+function setThinkingLabel(text) {
+  const el = document.getElementById("thinking-label");
+  if (el) el.textContent = text;
+}
+
+function removeThinking() { document.getElementById("thinking-indicator")?.remove(); }
+function scrollToBottom() { chatEl.scrollTop = chatEl.scrollHeight; }
+
+function renderMarkdown(text) {
+  // First extract code blocks to protect them from global replacements
+  const blocks = [];
+  let s = text.replace(/```(\w*)\n([\s\S]*?)```/g, (_, lang, code) => {
+    const placeholder = `__CODE_BLOCK_${blocks.length}__`;
+    blocks.push({ lang, code });
+    return placeholder;
+  });
+
+  // Escape HTML on the rest
+  s = s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  
+  // Inline code
+  s = s.replace(/`([^`]+)`/g, '<code style="background:#1a1a1a;border:1px solid #333;border-radius:3px;padding:1px 5px;font-size:11px;">$1</code>');
+  // Bold
+  s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  // Italic
+  s = s.replace(/\*(.+?)\*/g, '<em>$1</em>');
+  // Headings
+  s = s.replace(/^### (.+)$/gm, '<div style="font-weight:700;font-size:13px;color:#f5a623;margin:6px 0 2px;">$1</div>');
+  s = s.replace(/^## (.+)$/gm, '<div style="font-weight:700;font-size:14px;color:#f5a623;margin:8px 0 2px;">$1</div>');
+  s = s.replace(/^# (.+)$/gm, '<div style="font-weight:700;font-size:15px;color:#f5a623;margin:10px 0 3px;">$1</div>');
+  // Bullet lists
+  s = s.replace(/^[ \t]*[-*] (.+)$/gm, '<div style="padding-left:14px;margin:1px 0;">• $1</div>');
+  // Numbered lists
+  s = s.replace(/^[ \t]*(\d+)\. (.+)$/gm, '<div style="padding-left:14px;margin:1px 0;">$1. $2</div>');
+  // Horizontal rules
+  s = s.replace(/^---+$/gm, '<hr style="border:none;border-top:1px solid #333;margin:8px 0;">');
+  // Newlines to <br> 
+  s = s.replace(/\n/g, '<br>');
+
+  // Finally restore code blocks
+  blocks.forEach((block, i) => {
+    const rawCode = block.code.trim();
+    // Safely encode text for the inline JS copy to clipboard parameter
+    const encodedCode = encodeURIComponent(rawCode).replace(/'/g, "\\'");
+    const cleanCode = rawCode.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const htmlCode = `<div class="code-wrapper"><div class="code-header"><span class="code-lang">${block.lang || "text"}</span><button class="copy-btn" onclick="navigator.clipboard.writeText(decodeURIComponent('${encodedCode}')).then(()=>this.textContent='COPIED!');setTimeout(()=>this.textContent='COPY',2000)">COPY</button></div><pre><code class="language-${block.lang || 'text'}">${cleanCode}</code></pre></div>`;
+    s = s.replace(`__CODE_BLOCK_${i}__`, htmlCode);
+  });
+
+  return s;
+}
+
+// ── Input handling ──
+inputEl.addEventListener("input", () => {
+  inputEl.style.height = "auto";
+  inputEl.style.height = Math.min(inputEl.scrollHeight, 140) + "px";
+
+  const val = inputEl.value;
+  if (val.startsWith("/") && !val.includes(" ")) {
+    const matches = matchCommands(val);
+    showCmdPopup(matches);
+  } else {
+    hideCmdPopup();
+  }
+});
+
+inputEl.addEventListener("keydown", e => {
+  // Navigate command popup
+  if (cmdPopup.classList.contains("visible")) {
+    const items = cmdPopup.querySelectorAll(".cmd-item");
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      cmdPopupIndex = Math.min(cmdPopupIndex + 1, items.length - 1);
+      items.forEach((el, i) => el.classList.toggle("selected", i === cmdPopupIndex));
+      return;
+    }
+    if (e.key === "ArrowUp") {
+      e.preventDefault();
+      cmdPopupIndex = Math.max(cmdPopupIndex - 1, 0);
+      items.forEach((el, i) => el.classList.toggle("selected", i === cmdPopupIndex));
+      return;
+    }
+    if (e.key === "Tab" || (e.key === "Enter" && cmdPopupIndex >= 0)) {
+      e.preventDefault();
+      const idx = cmdPopupIndex >= 0 ? cmdPopupIndex : 0;
+      const matched = matchCommands(inputEl.value);
+      if (matched[idx]) selectCommand(matched[idx]);
+      return;
+    }
+    if (e.key === "Escape") { hideCmdPopup(); return; }
+  }
+
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    if (!isGenerating) sendMessage();
+  }
+});
+
+inputEl.addEventListener("blur", () => setTimeout(hideCmdPopup, 150));
+
+sendBtn.addEventListener("click", () => { if (!isGenerating) sendMessage(); });
+removeImageBtn.addEventListener("click", () => { pendingImage = null; imagePreviewWrap.classList.remove("visible"); });
+btnNewChat.addEventListener("click", newChat);
+btnToggle.addEventListener("click", () => sidebar.classList.toggle("collapsed"));
+
+document.addEventListener("paste", e => {
+  for (const item of (e.clipboardData?.items || [])) {
+    if (item.type.startsWith("image/")) {
+      loadImageFile(item.getAsFile());
+      pasteFlash.classList.add("show");
+      setTimeout(() => pasteFlash.classList.remove("show"), 300);
+      break;
+    }
+  }
+});
+
+document.addEventListener("dragover", e => e.preventDefault());
+document.addEventListener("drop", async e => {
+  e.preventDefault();
+  const file = e.dataTransfer?.files[0];
+  if (!file) return;
+  
+  if (file.type.startsWith("image/")) {
+    loadImageFile(file);
+  } else if (file.name.toLowerCase().endsWith(".pdf") || file.name.toLowerCase().endsWith(".txt")) {
+    // Upload document for RAG
+    showSystemMsg(`Uploading document ${file.name}...`);
+    const formData = new FormData();
+    formData.append("file", file);
+    try {
+      const res = await fetch(`${BACKEND_URL}/upload`, { method: "POST", body: formData });
+      const data = await res.json();
+      if (data.success) {
+        showSystemMsg(`✓ Document extracted to ${data.filepath}`);
+        inputEl.value = `I have uploaded a document named '${data.filename}'. It has been extracted to a text file at: ${data.filepath}\n\nPlease use your read_file tool to read this file now.`;
+        sendMessage();
+      } else {
+        showSystemMsg(`Error uploading document: ${data.error}`);
+      }
+    } catch (err) {
+      showSystemMsg(`Failed to upload document: ${err.message}`);
+    }
+  }
+});
+
+function loadImageFile(file) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    pendingImage = reader.result;
+    imagePreviewEl.src = pendingImage;
+    imagePreviewWrap.classList.add("visible");
+    inputEl.focus();
+  };
+  reader.readAsDataURL(file);
+}
+
+function b64(dataUrl) { return dataUrl.split(",")[1]; }
+
+function setGenerating(val) {
+  isGenerating = val;
+  sendBtn.disabled = val;
+  sendBtn.textContent = val ? "..." : "SEND ↵";
+  let stopBtn = document.getElementById("stop-btn");
+  if (val) {
+    if (!stopBtn) {
+      stopBtn = document.createElement("button");
+      stopBtn.id = "stop-btn";
+      stopBtn.textContent = "■ STOP";
+      stopBtn.style.cssText = "background:#c0392b;border:1px solid #c0392b;border-radius:6px;color:#fff;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;padding:10px 14px;white-space:nowrap;letter-spacing:0.5px;";
+      stopBtn.onclick = () => {
+        if (currentAbortController) currentAbortController.abort();
+      };
+      sendBtn.parentNode.insertBefore(stopBtn, sendBtn);
+    }
+  } else {
+    if (stopBtn) stopBtn.remove();
+    currentAbortController = null;
+  }
+}
+
+// ── Send ──
+async function sendMessage() {
+  const text = inputEl.value.trim();
+  if (!text && !pendingImage) return;
+
+  // Handle slash commands
+  if (text.startsWith("/")) {
+    const handled = handleCommand(text);
+    if (handled) {
+      inputEl.value = "";
+      inputEl.style.height = "auto";
+      return;
+    }
+  }
+
+  if (!activeId) newChat();
+
+  const conv = getActive();
+  const imageToSend = pendingImage;
+  const userText = text || "What's in this image?";
+
+  const historyEntry = { role: "user", content: userText };
+  if (imageToSend) {
+    historyEntry.images = [b64(imageToSend)];
+    historyEntry._imageDataUrl = imageToSend;
+  }
+
+  conv.history.push(historyEntry);
+  if (conv.history.filter(m => m.role === "user").length === 1) updateTitle(activeId, userText);
+  saveConvs();
+
+  addMessageEl("user", userText, imageToSend);
+
+  inputEl.value = "";
+  inputEl.style.height = "auto";
+  pendingImage = null;
+  imagePreviewWrap.classList.remove("visible");
+
+  setGenerating(true);
+  await runAgent();
+  setGenerating(false);
+}
+
+// ── Tools ──
+const tools = [
+  {
+    type: "function",
+    function: {
+      name: "web_search",
+      description: "Search the internet for current information, news, facts, or anything requiring up-to-date knowledge",
+      parameters: {
+        type: "object",
+        properties: { query: { type: "string", description: "The search query" } },
+        required: ["query"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "run_command",
+      description: "Execute a PowerShell command on the Windows local machine. Use this to run scripts, interact with the system, or test code. The command must be non-interactive.",
+      parameters: {
+        type: "object",
+        properties: { command: { type: "string", description: "The raw PowerShell command to execute" } },
+        required: ["command"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "read_file",
+      description: "Read the full contents of a file on the local filesystem. Always use absolute paths.",
+      parameters: {
+        type: "object",
+        properties: { filepath: { type: "string", description: "The absolute path to the file" } },
+        required: ["filepath"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "write_file",
+      description: "Write raw content directly to a file on the local filesystem, overwriting it entirely. Warning: This replaces the previous content.",
+      parameters: {
+        type: "object",
+        properties: { 
+          filepath: { type: "string", description: "The absolute path to the file to create or overwrite" }, 
+          content: { type: "string", description: "The exact raw file content payload" } 
+        },
+        required: ["filepath", "content"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "read_webpage",
+      description: "Extract readable text content from a web page URL",
+      parameters: {
+        type: "object",
+        properties: { url: { type: "string", description: "The HTTP/HTTPS URL" } },
+        required: ["url"]
+      }
+    }
+  }
+];
+
+async function executeTool(name, args) {
+  try {
+    if (name === "web_search") {
+      const r = await fetch(`${BACKEND_URL}/search?q=${encodeURIComponent(args.query)}`);
+      const data = await r.json();
+      return { result: JSON.stringify(data), type: "search" };
+    }
+    if (name === "read_webpage") {
+      const r = await fetch(`${BACKEND_URL}/scrape`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url: args.url }) });
+      const data = await r.json();
+      return { result: data.output || data.error, type: "read_webpage" };
+    }
+    if (name === "run_command") {
+      const r = await fetch(`${BACKEND_URL}/command`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ command: args.command }) });
+      const data = await r.json();
+      return { result: data.output || data.error || "No output", type: "command" };
+    }
+    if (name === "read_file") {
+      const r = await fetch(`${BACKEND_URL}/read_file`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ filepath: args.filepath }) });
+      const data = await r.json();
+      return { result: data.output || data.error, type: "read_file" };
+    }
+    if (name === "write_file") {
+      const r = await fetch(`${BACKEND_URL}/write_file`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ filepath: args.filepath, content: args.content }) });
+      const data = await r.json();
+      return { result: data.output || data.error, type: "write_file" };
+    }
+    return { result: `Unknown tool: ${name}`, type: "command" };
+  } catch (err) {
+    return { result: `Backend error: ${err.message} — is server.py running?`, type: "command" };
+  }
+}
+
+// ── Agent loop ──
+async function runAgent() {
+  const conv = getActive();
+  const convId = activeId; // snapshot — used to guard DOM writes if user switches chat
+  appendThinking();
+
+  currentAbortController = new AbortController();
+  const signal = currentAbortController.signal;
+
+  // Only send the last 40 messages to avoid exceeding the model's context window
+  const MAX_HISTORY = 40;
+  const apiHistory = conv.history.slice(-MAX_HISTORY).map(m => {
+    const clean = { role: m.role, content: m.content };
+    if (m.images) clean.images = m.images;
+    if (m.tool_calls) clean.tool_calls = m.tool_calls;
+    return clean;
+  });
+
+  let iteration = 0;
+  let totalContentProduced = false; // tracks if any text was shown across all iterations
+
+  while (true) {
+    if (signal.aborted) {
+      removeThinking();
+      if (activeId === convId) addMessageEl("agent", "⚠ Generation stopped by user.");
+      break;
+    }
+
+    iteration++;
+    if (iteration > MAX_AGENT_ITERATIONS) {
+      removeThinking();
+      if (activeId === convId) addMessageEl("agent", `⚠ Agent loop stopped after ${MAX_AGENT_ITERATIONS} iterations to prevent runaway loops. This usually means the model kept calling tools without finishing. Try rephrasing your request or switching models.`);
+      break;
+    }
+
+    setThinkingLabel(`thinking… (step ${iteration}/${MAX_AGENT_ITERATIONS})`);
+
+    try {
+      const payload = {
+        model: modelSelect.value,
+        messages: [
+          { role: "system", content: `Current date and time: ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} at ${new Date().toLocaleTimeString('en-US')}\n\n${currentPersonality.prompt}` },
+          ...apiHistory
+        ],
+        tools,
+        stream: true,
+        keep_alive: "10m",
+        options: { temperature: currentTemp }
+      };
+
+      let response = await fetch(`${OLLAMA_URL}/api/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        signal,
+        body: JSON.stringify(payload)
+      });
+
+      removeThinking();
+
+      if (!response.ok) {
+        let errText = `Error ${response.status}`;
+        try {
+          const errData = await response.json();
+          if (errData.error) errText = errData.error;
+        } catch {}
+        
+        if (response.status === 400 && errText.includes("tools")) {
+           // Graceful fallback: retry without tools
+           if (activeId === convId) addMessageEl("agent", `*(Warning: The selected model does not support tool-calling. Running in standard conversational mode without agent capabilities.)*`);
+           delete payload.tools;
+           
+           response = await fetch(`${OLLAMA_URL}/api/chat`, {
+             method: "POST",
+             headers: { "Content-Type": "application/json" },
+             signal,
+             body: JSON.stringify(payload)
+           });
+           
+           if (!response.ok) {
+             throw new Error(`Fallback failed with status ${response.status}`);
+           }
+        } else {
+           if (activeId === convId) {
+             addMessageEl("agent", `⚠ ${errText}\n\nMake sure Ollama is running with:\n\`$env:OLLAMA_ORIGINS="*"\nollama serve\``);
+           }
+           break;
+        }
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let fullContent = "";
+      let toolCalls = null;
+      let agentBubble = null;
+
+      while (true) {
+        if (signal.aborted) { reader.cancel(); break; }
+        const { done, value } = await reader.read();
+        if (done) break;
+        const lines = decoder.decode(value).split("\n").filter(Boolean);
+        for (const line of lines) {
+          try {
+            const data = JSON.parse(line);
+            const msg = data.message;
+            if (msg?.content) {
+              if (activeId !== convId) { reader.cancel(); break; }
+              if (!agentBubble) agentBubble = addMessageEl("agent", "");
+              fullContent += msg.content;
+              totalContentProduced = true;
+              agentBubble.innerHTML = renderMarkdown(fullContent);
+              scrollToBottom();
+            }
+            if (msg?.tool_calls) toolCalls = msg.tool_calls;
+          } catch { /* skip */ }
+        }
+      }
+
+      if (signal.aborted) {
+        if (activeId === convId) addMessageEl("agent", "⚠ Generation stopped by user.");
+        break;
+      }
+
+      const assistantEntry = { role: "assistant", content: fullContent };
+      if (toolCalls) assistantEntry.tool_calls = toolCalls;
+      conv.history.push(assistantEntry);
+      apiHistory.push(assistantEntry);
+      saveConvs();
+
+      if (!toolCalls || toolCalls.length === 0) {
+        if (!totalContentProduced && activeId === convId) {
+          addMessageEl("agent", "⚠ The model ran but returned no text. The search may have failed or the model couldn't process the results. Check that server.py is running.");
+        }
+        break;
+      }
+
+      for (const tc of toolCalls) {
+        const name = tc.function.name;
+        const args = tc.function.arguments;
+        const isSearch = name === "web_search";
+        const isCmd = name === "run_command";
+
+        // --- Safe Mode for Commands ---
+        let commandApproved = true;
+        if (isCmd) {
+          removeThinking();
+          commandApproved = await new Promise(resolve => {
+            const wrap = document.createElement("div");
+            wrap.className = "tool-call type-command";
+            wrap.style.borderColor = "#c0392b";
+            
+            // Clean/escape the command for display to prevent HTML injection in the prompt
+            const cleanCmd = args.command ? args.command.replace(/</g, "&lt;").replace(/>/g, "&gt;") : "Empty command";
+
+            wrap.innerHTML = `
+              <div class="tool-header" style="background:#4a1c1c">
+                <span class="tool-icon">⚠</span>
+                <span class="tool-name">Security Check</span>
+                <span class="tool-args">Agent wants to run a command</span>
+              </div>
+              <div class="tool-body" style="display:flex;flex-direction:column;gap:10px;background:#2a0f0f;color:#e8e8e8;display:block;">
+                <div>The agent wants to execute the following command:</div>
+                <code style="display:block;background:#0a0a0a;padding:8px;border-radius:4px;border:1px solid #c0392b;font-family:'JetBrains Mono',monospace;">${cleanCmd}</code>
+                <div style="display:flex;gap:10px;margin-top:6px;">
+                  <button class="btn-send" id="btn-approve" style="background:#2ecc71;border-color:#2ecc71;color:#000;">Approve</button>
+                  <button class="btn-send" id="btn-deny" style="background:#c0392b;border-color:#c0392b;color:#fff;">Deny</button>
+                </div>
+              </div>`;
+            chatEl.appendChild(wrap);
+            scrollToBottom();
+            
+            wrap.querySelector("#btn-approve").onclick = () => { wrap.remove(); resolve(true); };
+            wrap.querySelector("#btn-deny").onclick = () => { wrap.remove(); resolve(false); };
+          });
+          appendThinking();
+        }
+
+        let modelResult = "";
+        let type = isSearch ? "search" : isCmd ? "command" : name;
+
+        if (!commandApproved) {
+            modelResult = "Command execution denied by user for security reasons. Provide an alternative or explain what you were trying to do.";
+            if (activeId === convId) renderToolCallEl(name, args, modelResult, type);
+        } else {
+            setThinkingLabel(isSearch ? `searching: ${args.query || ""}` : `running: ${name}`);
+            
+            const toolExec = await executeTool(name, args);
+            removeThinking();
+            if (activeId === convId) renderToolCallEl(name, args, toolExec.result, toolExec.type);
+            
+            type = toolExec.type;
+            modelResult = toolExec.result;
+            
+            if (type === "search") {
+              try {
+                const parsed = JSON.parse(toolExec.result);
+                if (parsed.results && Array.isArray(parsed.results)) {
+                  if (parsed.results.length === 0) {
+                     modelResult = "No search results found.";
+                  } else {
+                     const snippets = parsed.results.map((r, i) => `[${i+1}] ${r.title}\n${r.url}\n${r.content || r.snippet || "(no content)"}`).join("\n\n");
+                     // Prepend Tavily's own AI-distilled answer if available - this is the most reliable signal
+                     if (parsed.answer) {
+                       modelResult = `SUMMARY FROM SEARCH ENGINE: ${parsed.answer}\n\nFULL SOURCES:\n${snippets}`;
+                     } else {
+                       modelResult = snippets;
+                     }
+                  }
+                } else if (parsed.error) {
+                  modelResult = `Search error: ${parsed.error}`;
+                } else {
+                  modelResult = "Unknown search result format.";
+                }
+              } catch {}
+            }
+        }
+
+        const toolHistEntry = { role: "tool", content: modelResult, _toolMeta: { name, args, type } };
+        // Include tool_call_id if the model provided one (required by some models)
+        const toolApiEntry = { role: "tool", content: modelResult };
+        if (tc.id) toolApiEntry.tool_call_id = tc.id;
+
+        conv.history.push(toolHistEntry);
+        apiHistory.push(toolApiEntry);
+        saveConvs();
+      }
+
+      appendThinking();
+
+    } catch (err) {
+      removeThinking();
+      if (activeId === convId) {
+        if (err.name === "AbortError") {
+          addMessageEl("agent", "⚠ Generation stopped by user.");
+        } else {
+          addMessageEl("agent", `Connection error: ${err.message}`);
+        }
+      }
+      break;
+    }
+  }
+  
+  if (conv.history.filter(m => m.role === "user").length === 1 && !conv._autoTitled && apiHistory.length > 0) {
+    conv._autoTitled = true;
+    fetch(`${OLLAMA_URL}/api/generate`, {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({
+        model: modelSelect.value,
+        prompt: `Create a very short 3-word title summarizing this query. Output ONLY the title. Query: ${apiHistory[0].content}`,
+        stream: false,
+        options: { temperature: 0.3 }
+      })
+    }).then(r => r.json()).then(data => {
+      if (data.response) {
+        const t = data.response.replace(/["']/g, "").trim();
+        conv.title = t;
+        if (activeId === convId) convNameHeader.textContent = t;
+        saveConvs();
+        renderSidebar();
+      }
+    }).catch(()=>{});
+  }
+}
+
+// ── Status checks ──
+async function updateHUD() {
+  try {
+    const r = await fetch(`${BACKEND_URL}/stats`);
+    if (r.ok) {
+      const data = await r.json();
+      const gEl = document.getElementById("hud-gpu");
+      const vEl = document.getElementById("hud-vram");
+      gEl.textContent = `${data.gpu}%`;
+      vEl.textContent = `${data.vram}%`;
+      gEl.style.color = data.gpu > 90 ? "#c0392b" : data.gpu > 75 ? "#f5a623" : "#2ecc71";
+      vEl.style.color = data.vram > 90 ? "#c0392b" : data.vram > 75 ? "#f5a623" : "#2ecc71";
+    }
+  } catch {}
+}
+
+setInterval(updateHUD, 3000);
+updateHUD();
+
+async function checkOllama() {
+  try {
+    const r = await fetch(`${OLLAMA_URL}/api/tags`, { signal: AbortSignal.timeout(3000) });
+    if (!r.ok) throw new Error();
+    ollamaDot.classList.add("online");
+    const data = await r.json();
+    if (data.models?.length > 0) {
+      modelSelect.innerHTML = "";
+      data.models.forEach(m => {
+        const opt = document.createElement("option");
+        opt.value = m.name;
+        opt.textContent = m.name.replace(":latest", "");
+        if (m.name.includes("vision") || m.name.includes("abliterated")) opt.selected = true;
+        modelSelect.appendChild(opt);
+      });
+    }
+  } catch {
+    ollamaDot.classList.remove("online");
+    modelSelect.innerHTML = `<option value="">Ollama offline</option>`;
+  }
+}
+
+async function checkBackend() {
+  try {
+    const r = await fetch(`${BACKEND_URL}/health`, { signal: AbortSignal.timeout(2000) });
+    if (r.ok) { backendDot.classList.add("online"); backendLabel.textContent = "Backend"; }
+    else throw new Error();
+  } catch {
+    backendDot.classList.remove("online");
+    backendLabel.textContent = "Backend";
+  }
+}
+
+// ── Init ──
+checkOllama();
+checkBackend();
+setInterval(checkBackend, 10000);
+buildPresets();
+updatePersonalityBadge();
+
+// Restore personality textarea if custom
+if (currentPersonality.name !== "Default") {
+  personalityName.value = currentPersonality.name;
+  personalityTextarea.value = currentPersonality.prompt.replace(DEFAULT_PERSONALITY.prompt, "").trim();
+}
+
+renderSidebar();
+if (conversations.length > 0) loadConv(conversations[0].id);
+else newChat();
+</script>
+</body>
+</html>
