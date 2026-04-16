@@ -94,7 +94,7 @@ import logging
 log = logging.getLogger('werkzeug')
 log.setLevel(logging.ERROR)
 
-tavily = TavilyClient(api_key="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")
+tavily = TavilyClient(api_key="")
 
 def deep_sanitize(obj):
     """Recursively strip non-ASCII characters from any object (dict, list, str)"""
