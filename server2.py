@@ -10,6 +10,78 @@ import GPUtil
 import requests
 from bs4 import BeautifulSoup
 import re
+import signal
+import sys
+import io
+
+# Force UTF-8 at the environment level
+os.environ["PYTHONIOENCODING"] = "utf-8"
+
+class LlamaManager:
+    def __init__(self):
+        self.process = None
+        self.path = r"C:\Users\Eddie\llama.cpp"
+
+    def start(self, model_file, mmproj_file=None):
+        if self.is_running():
+            return True, "Already running"
+        
+        try:
+            # Use port 8080 to match bot.js and defaults
+            cmd = [
+                os.path.join(self.path, "llama-server.exe"),
+                "-m", os.path.join(self.path, "Models", model_file),
+                "-ngl", "35",
+                "-c", "16500",
+                "--host", "0.0.0.0",
+                "--port", "8080"
+            ]
+            
+            if mmproj_file:
+                cmd.extend(["--mmproj", os.path.join(self.path, "Models", mmproj_file)])
+
+            self.process = subprocess.Popen(
+                cmd,
+                cwd=self.path,
+                creationflags=subprocess.CREATE_NEW_CONSOLE
+            )
+            return True, f"Started model: {model_file}"
+        except Exception as e:
+            return False, str(e)
+
+    def stop(self):
+        if not self.is_running():
+            return True, "Not running"
+        try:
+            # Try to kill by process name as well for robustness
+            subprocess.run(["taskkill", "/F", "/IM", "llama-server.exe"], capture_output=True)
+            if self.process:
+                self.process.terminate()
+            self.process = None
+            return True, "Stopped"
+        except Exception as e:
+            if self.process:
+                self.process.kill()
+            self.process = None
+            return True, f"Force stopped ({e})"
+
+    def is_running(self):
+        # 1. Check if we have a live process handle
+        if self.process and self.process.poll() is None:
+            return True
+        
+        # 2. Hard check: Ping the actual port to see if a Ghost or manual instance is there
+        try:
+            # llama.cpp server usually has a /v1/models or /health endpoint
+            r = requests.get("http://127.0.0.1:8080/v1/models", timeout=1)
+            if r.status_code == 200:
+                return True
+        except:
+            pass
+
+        return False
+
+llama_manager = LlamaManager()
 
 UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "uploads")
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -17,40 +89,60 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app = Flask(__name__)
 CORS(app)
 
-# Initialize Tavily Client with your provided API key
-tavily = TavilyClient(api_key="ENTER-API-KEY-HERE-FOR-TAVILY-DO-NOT-REMOVE-QUOTES")
+# Mute Flask/Werkzeug logging to prevent console crashes on request URLs containing symbols
+import logging
+log = logging.getLogger('werkzeug')
+log.setLevel(logging.ERROR)
+
+tavily = TavilyClient(api_key="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")
+
+def deep_sanitize(obj):
+    """Recursively strip non-ASCII characters from any object (dict, list, str)"""
+    if isinstance(obj, str):
+        return obj.encode('ascii', 'ignore').decode('ascii')
+    if isinstance(obj, list):
+        return [deep_sanitize(x) for x in obj]
+    if isinstance(obj, dict):
+        return {k: deep_sanitize(v) for k, v in obj.items()}
+    return obj
 
 @app.route("/search")
 def search():
-    query = request.args.get("q", "")
-    if not query:
+    raw_query = request.args.get("q", "")
+    if not raw_query:
         return jsonify({"error": "No query provided"}), 400
     
+    # SANITIZE: Force ASCII-only for the search engine
+    query = raw_query.encode('ascii', 'ignore').decode('ascii').strip()
+    
     try:
-        # Use advanced depth for richer content so the model doesn't hallucinate
+        # Use advanced depth for richer content
         response = tavily.search(
             query=query,
             search_depth="advanced",
             max_results=5,
-            include_answer=True,      # Tavily's own AI-distilled answer as a bonus signal
-            include_raw_content=False # Raw HTML is too large; the content field is enough
+            include_answer=True,
+            include_raw_content=False
         )
         
         results_list = response.get('results', [])
         tavily_answer = response.get('answer', '')
         
-        # Ensure every result has a non-empty content field so the model doesn't blank out
         for r in results_list:
             if not r.get('content'):
                 r['content'] = r.get('snippet', r.get('title', 'No content available'))
         
-        print(f"[Tavily Search] '{query}' → {len(results_list)} results, answer: {'yes' if tavily_answer else 'no'}")
+        # TRIPLE-SHIELD: Sanitize the entire response object before sending
+        final_data = deep_sanitize({
+            "results": results_list, 
+            "answer": tavily_answer
+        })
         
-        return jsonify({"results": results_list, "answer": tavily_answer})
+        return jsonify(final_data)
 
     except Exception as e:
-        print(f"[search] ERROR: {e}")
-        return jsonify({"error": str(e), "results": []})
+        # Sanitize the error message too, just in case
+        return jsonify({"error": deep_sanitize(str(e)), "results": []})
 
 @app.route("/command", methods=["POST"])
 def command():
@@ -134,6 +226,8 @@ def health():
 def stats():
     gpu_percent = 0
     vram_percent = 0
+    cpu_percent = psutil.cpu_percent()
+    ram_percent = psutil.virtual_memory().percent
     
     try:
         gpus = GPUtil.getGPUs()
@@ -143,7 +237,12 @@ def stats():
     except:
         pass
         
-    return jsonify({"gpu": gpu_percent, "vram": vram_percent})
+    return jsonify({
+        "gpu": gpu_percent, 
+        "vram": vram_percent,
+        "cpu": cpu_percent,
+        "ram": ram_percent
+    })
 
 @app.route("/scrape", methods=["POST"])
 def scrape_url():
@@ -161,6 +260,37 @@ def scrape_url():
         return jsonify({"output": text.strip()})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+@app.route("/llama/models")
+def llama_list_models():
+    models_dir = os.path.join(llama_manager.path, "Models")
+    if not os.path.exists(models_dir):
+        return jsonify({"models": [], "projectors": []})
+    
+    files = os.listdir(models_dir)
+    models = [f for f in files if f.endswith(".gguf") and "mmproj" not in f.lower()]
+    projectors = [f for f in files if f.endswith(".gguf") and "mmproj" in f.lower()]
+    
+    return jsonify({"models": models, "projectors": projectors})
+
+@app.route("/llama/start", methods=["POST"])
+def llama_start():
+    model = request.json.get("model")
+    mmproj = request.json.get("mmproj") # Optional
+    if not model:
+        return jsonify({"success": False, "message": "No model file provided"})
+        
+    success, msg = llama_manager.start(model, mmproj)
+    return jsonify({"success": success, "message": msg})
+
+@app.route("/llama/stop", methods=["POST"])
+def llama_stop():
+    success, msg = llama_manager.stop()
+    return jsonify({"success": success, "message": msg})
+
+@app.route("/llama/status")
+def llama_status():
+    return jsonify({"running": llama_manager.is_running()})
 
 if __name__ == "__main__":
     print("ph3dGPT backend running on http://localhost:5000")

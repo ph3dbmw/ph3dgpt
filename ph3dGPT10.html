@@ -234,18 +234,40 @@
 
   .personality-textarea:focus { border-color: var(--amber-dim); }
 
-  .btn-save-personality {
-    width: 100%;
-    background: var(--amber);
-    border: none;
-    border-radius: var(--radius);
-    color: #000;
-    cursor: pointer;
-    font-family: 'JetBrains Mono', monospace;
+  .btn-save-personality:hover { background: var(--amber-dim); }
+
+  /* Thoughts / Reasoning */
+  .thought-block {
+    background: rgba(255, 255, 255, 0.03);
+    border-left: 2px solid var(--amber-dim);
+    border-radius: 4px;
+    margin: 8px 0;
+    padding: 10px 14px;
     font-size: 11px;
+    color: var(--text-dim);
+    font-style: italic;
+    line-height: 1.5;
+  }
+  .thought-header {
+    font-size: 9px;
     font-weight: 700;
-    padding: 8px;
-    transition: background 0.15s;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--amber-dim);
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .thought-header::before {
+    content: "●";
+    color: var(--amber);
+    animation: pulse-amber 1.5s infinite;
+  }
+  @keyframes pulse-amber {
+    0% { opacity: 0.4; }
+    50% { opacity: 1; }
+    100% { opacity: 0.4; }
   }
 
   .btn-save-personality:hover { background: #ffc04a; }
@@ -300,18 +322,90 @@
 
   .model-select {
     width: 100%;
-    background: var(--bg);
+    background: #050505;
     border: 1px solid var(--border);
+    border-radius: var(--radius);
     color: var(--text-mid);
     font-family: 'JetBrains Mono', monospace;
     font-size: 10px;
     padding: 6px 8px;
-    border-radius: var(--radius);
-    cursor: pointer;
     outline: none;
+    cursor: pointer;
+    transition: all 0.15s;
   }
 
   .model-select:focus { border-color: var(--amber-dim); }
+  
+  .provider-group {
+    padding: 10px;
+    border-radius: var(--radius);
+    border: 1px solid transparent;
+    transition: all 0.2s;
+    margin-bottom: 8px;
+  }
+
+  .provider-group.active {
+    background: #1a1400;
+    border-color: var(--amber-dim);
+  }
+
+  .provider-group.active .panel-label {
+    color: var(--amber);
+  }
+
+  .provider-group:not(.active) {
+    opacity: 0.6;
+  }
+
+  /* Switches */
+  .provider-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+  }
+
+  .switch {
+    position: relative;
+    display: inline-block;
+    width: 26px;
+    height: 14px;
+    flex-shrink: 0;
+  }
+
+  .switch input { opacity: 0; width: 0; height: 0; }
+
+  .slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-color: var(--border);
+    transition: .2s;
+    border-radius: 34px;
+  }
+
+  .slider:before {
+    position: absolute;
+    content: "";
+    height: 10px;
+    width: 10px;
+    left: 2px;
+    bottom: 2px;
+    background-color: #555;
+    transition: .2s;
+    border-radius: 50%;
+  }
+
+  input:checked + .slider { background-color: var(--amber-dim); }
+  input:checked + .slider:before { transform: translateX(12px); background-color: var(--amber); }
+
+  .status-text {
+    font-size: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-dim);
+    margin-left: 6px;
+  }
 
   .status-row {
     display: flex;
@@ -717,12 +811,48 @@
   </div>
 
   <div class="sidebar-footer">
-    <select class="model-select" id="model-select">
-      <option value="">Loading models...</option>
-    </select>
+    <div class="provider-group" id="group-llama">
+      <div class="provider-header">
+        <div class="panel-label">llama.cpp <span id="llama-status" class="status-text">OFF</span></div>
+        <label class="switch">
+          <input type="checkbox" id="llama-toggle">
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div style="margin-bottom:6px">
+        <select class="model-select" id="llama-model-select">
+          <option value="">Scan Models...</option>
+        </select>
+      </div>
+      <div id="llama-vision-wrap" style="display:none; align-items:center; justify-content:space-between; margin-top:2px; padding:0 2px">
+        <div class="panel-label" style="font-size:8px; margin-bottom:0">Vision Mode</div>
+        <label class="switch" style="transform: scale(0.8); margin-right:-4px">
+          <input type="checkbox" id="llama-vision-toggle">
+          <span class="slider"></span>
+        </label>
+      </div>
+    </div>
+    
+    <div class="provider-group" id="group-ollama">
+      <div class="provider-header">
+        <div class="panel-label">Ollama <span id="ollama-status" class="status-text">OFF</span></div>
+        <label class="switch">
+          <input type="checkbox" id="ollama-toggle" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+      <select class="model-select" id="model-select">
+        <option value="">Loading Ollama models...</option>
+      </select>
+    </div>
+
     <div class="hud-container">
       <div class="hud-box"><span>GPU</span><span id="hud-gpu" style="color:var(--text-dim)">--%</span></div>
       <div class="hud-box"><span>VRAM</span><span id="hud-vram" style="color:var(--text-dim)">--%</span></div>
+    </div>
+    <div class="hud-container" style="margin-top:4px">
+      <div class="hud-box"><span>CPU</span><span id="hud-cpu" style="color:var(--text-dim)">--%</span></div>
+      <div class="hud-box"><span>RAM</span><span id="hud-ram" style="color:var(--text-dim)">--%</span></div>
     </div>
     <div class="status-row">
       <div class="status-item">
@@ -778,6 +908,7 @@
 
 <script>
 const OLLAMA_URL = "http://localhost:11434";
+const LLAMA_URL = "http://localhost:8080";
 const BACKEND_URL = "http://localhost:5000";
 
 // ── Default personality ──
@@ -878,6 +1009,7 @@ let activeId = null;
 let pendingImage = null;
 let isGenerating = false;
 let currentPersonality = JSON.parse(localStorage.getItem("ph3d_personality") || JSON.stringify(DEFAULT_PERSONALITY));
+let currentProvider = localStorage.getItem("ph3d_provider") || "ollama";
 let currentAbortController = null;
 const MAX_AGENT_ITERATIONS = 12;
 let currentTemp = parseFloat(localStorage.getItem("ph3d_temp") || "0.7");
@@ -888,10 +1020,15 @@ const chatEl = document.getElementById("chat");
 const inputEl = document.getElementById("input");
 const sendBtn = document.getElementById("btn-send");
 const modelSelect = document.getElementById("model-select");
+const llamaModelSelect = document.getElementById("llama-model-select");
+const llamaVisionToggle = document.getElementById("llama-vision-toggle");
+const llamaVisionWrap = document.getElementById("llama-vision-wrap");
 const emptyState = document.getElementById("empty-state");
 const imagePreviewWrap = document.getElementById("image-preview-wrap");
 const imagePreviewEl = document.getElementById("image-preview");
 const removeImageBtn = document.getElementById("remove-image");
+
+let availableProjectors = []; 
 const pasteFlash = document.getElementById("paste-flash");
 const sidebar = document.getElementById("sidebar");
 const convList = document.getElementById("conv-list");
@@ -1454,13 +1591,23 @@ function setThinkingLabel(text) {
   if (el) el.textContent = text;
 }
 
-function removeThinking() { document.getElementById("thinking-indicator")?.remove(); }
-function scrollToBottom() { chatEl.scrollTop = chatEl.scrollHeight; }
+function removeThinking() { 
+  // Aggressively remove all instances of thinking indicators to prevent ghosting
+  while(document.getElementById("thinking-indicator")) {
+    document.getElementById("thinking-indicator").remove();
+  }
+}
+function scrollToBottom() { 
+  // Fast scroll to stay glued to the bottom during streaming
+  chatEl.scrollTop = chatEl.scrollHeight; 
+}
 
 function renderMarkdown(text) {
+  let s = text;
+
   // First extract code blocks to protect them from global replacements
   const blocks = [];
-  let s = text.replace(/```(\w*)\n([\s\S]*?)```/g, (_, lang, code) => {
+  s = s.replace(/```(\w*)\n([\s\S]*?)```/g, (_, lang, code) => {
     const placeholder = `__CODE_BLOCK_${blocks.length}__`;
     blocks.push({ lang, code });
     return placeholder;
@@ -1469,6 +1616,13 @@ function renderMarkdown(text) {
   // Escape HTML on the rest
   s = s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   
+  // Handle reasoning <think> tags (DeepSeek-style)
+  // These must be handled AFTER escaping to avoid being escaped themselves
+  // 1. Completed blocks
+  s = s.replace(/&lt;think&gt;([\s\S]*?)&lt;\/think&gt;/g, '<div class="thought-block"><div class="thought-header">Reasoning</div>$1</div>');
+  // 2. Unclosed block (during active streaming)
+  s = s.replace(/&lt;think&gt;([\s\S]*)$/g, '<div class="thought-block"><div class="thought-header">Reasoning</div>$1</div>');
+
   // Inline code
   s = s.replace(/`([^`]+)`/g, '<code style="background:#1a1a1a;border:1px solid #333;border-radius:3px;padding:1px 5px;font-size:11px;">$1</code>');
   // Bold
@@ -1781,12 +1935,43 @@ async function runAgent() {
   currentAbortController = new AbortController();
   const signal = currentAbortController.signal;
 
-  // Only send the last 40 messages to avoid exceeding the model's context window
-  const MAX_HISTORY = 40;
+  const isOllama = currentProvider === "ollama";
+  const model = isOllama ? modelSelect.value : llamaModelSelect.value;
+  
+  // Detect if current model supports vision
+  let canVision = false;
+  if (isOllama) {
+    const vKeywords = ["vision", "llava", "moondream", "qwen-vl", "lava", "bakllava", "minicpm"];
+    canVision = vKeywords.some(k => model.toLowerCase().includes(k));
+  } else {
+    canVision = document.getElementById("llama-vision-toggle")?.checked === true;
+  }
+
+  // Optimization: Send only the last 15 messages and truncate massive tool results
+  const MAX_HISTORY = 15;
   const apiHistory = conv.history.slice(-MAX_HISTORY).map(m => {
-    const clean = { role: m.role, content: m.content };
-    if (m.images) clean.images = m.images;
-    if (m.tool_calls) clean.tool_calls = m.tool_calls;
+    let content = m.content || "";
+    // Smart Truncation: Prevent old huge search results from bloating the context window
+    if (content.length > 10000) {
+      content = content.substring(0, 10000) + "\n\n[... Content truncated for performance ...]";
+    }
+    const clean = { role: m.role, content: content };
+    // Only include images if the model can actually handle them, otherwise Ollama/llama.cpp crash
+    if (canVision && m.images) clean.images = m.images;
+    
+    if (m.tool_calls) {
+      // llama.cpp OpenAI format requires "type": "function" for each tool call in history
+      clean.tool_calls = m.tool_calls.map(tc => ({
+        ...tc,
+        type: tc.type || "function"
+      }));
+    }
+    
+    // Tool result messages (role: "tool") must include the tool_call_id for OpenAI/llama.cpp
+    if (m.role === "tool") {
+      clean.tool_call_id = m.tool_call_id;
+    }
+    
     return clean;
   });
 
@@ -1810,40 +1995,61 @@ async function runAgent() {
     setThinkingLabel(`thinking… (step ${iteration}/${MAX_AGENT_ITERATIONS})`);
 
     try {
+      const isOllama = currentProvider === "ollama";
+      const baseUrl = isOllama ? OLLAMA_URL : LLAMA_URL;
+      const apiEndpoint = isOllama ? `${baseUrl}/api/chat` : `${baseUrl}/v1/chat/completions`;
+      const model = isOllama ? modelSelect.value : llamaModelSelect.value;
+
+      if (!model) {
+        removeThinking();
+        if (activeId === convId) addMessageEl("agent", `⚠ No model selected for ${currentProvider}. Please choose one from the sidebar.`);
+        break;
+      }
+
       const payload = {
-        model: modelSelect.value,
+        model: model,
         messages: [
           { role: "system", content: `Current date and time: ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} at ${new Date().toLocaleTimeString('en-US')}\n\n${currentPersonality.prompt}` },
           ...apiHistory
         ],
         tools,
         stream: true,
-        keep_alive: "10m",
         options: { temperature: currentTemp }
       };
+      
+      // Ollama specific tweaks
+      if (isOllama) {
+        payload.keep_alive = "10m";
+      }
 
-      let response = await fetch(`${OLLAMA_URL}/api/chat`, {
+      setThinkingLabel(`Awaiting response (step ${iteration})...`);
+      
+      let response = await fetch(apiEndpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         signal,
         body: JSON.stringify(payload)
       });
 
+      // Clear the "thinking..." placeholder as soon as the connection is established
       removeThinking();
 
       if (!response.ok) {
         let errText = `Error ${response.status}`;
         try {
           const errData = await response.json();
-          if (errData.error) errText = errData.error;
+          if (errData.error) {
+            // Handle both OpenAI format {error: {message: "..."}} and strings
+            errText = typeof errData.error === 'object' ? (errData.error.message || JSON.stringify(errData.error)) : errData.error;
+          }
         } catch {}
         
-        if (response.status === 400 && errText.includes("tools")) {
+        if (response.status === 400 && String(errText).includes("tools")) {
            // Graceful fallback: retry without tools
            if (activeId === convId) addMessageEl("agent", `*(Warning: The selected model does not support tool-calling. Running in standard conversational mode without agent capabilities.)*`);
            delete payload.tools;
            
-           response = await fetch(`${OLLAMA_URL}/api/chat`, {
+           response = await fetch(apiEndpoint, {
              method: "POST",
              headers: { "Content-Type": "application/json" },
              signal,
@@ -1855,7 +2061,10 @@ async function runAgent() {
            }
         } else {
            if (activeId === convId) {
-             addMessageEl("agent", `⚠ ${errText}\n\nMake sure Ollama is running with:\n\`$env:OLLAMA_ORIGINS="*"\nollama serve\``);
+             let hint = isOllama 
+               ? `Make sure Ollama is running with:\n\`$env:OLLAMA_ORIGINS="*"\nollama serve\`` 
+               : `Check your llama-server window. You might be out of VRAM, or trying to send images with 'Vision Mode' OFF (which causes llama-server to error).`;
+             addMessageEl("agent", `⚠ ${errText}\n\n${hint}`);
            }
            break;
         }
@@ -1866,27 +2075,121 @@ async function runAgent() {
       let fullContent = "";
       let toolCalls = null;
       let agentBubble = null;
+      let streamBuffer = "";
+      let inThought = false; // Track if we are currently in a thinking block (for Ollama)
+      let lastRenderTime = 0; // Throttle for rendering speed
+      let streamedToolCalls = []; // Accumulator for OpenAI delta tool calls (llama.cpp)
 
       while (true) {
         if (signal.aborted) { reader.cancel(); break; }
         const { done, value } = await reader.read();
         if (done) break;
-        const lines = decoder.decode(value).split("\n").filter(Boolean);
+        
+        streamBuffer += decoder.decode(value, { stream: true });
+        const lines = streamBuffer.split("\n");
+        streamBuffer = lines.pop(); // Keep partial line in buffer
+
         for (const line of lines) {
+          const trimmedLine = line.trim();
+          if (!trimmedLine) continue;
+
           try {
-            const data = JSON.parse(line);
-            const msg = data.message;
-            if (msg?.content) {
+            let data = null;
+            if (isOllama) {
+              data = JSON.parse(trimmedLine);
+            } else {
+              // llama.cpp OpenAI format: "data: {...}"
+              if (trimmedLine.startsWith("data: ")) {
+                const jsonStr = trimmedLine.replace("data: ", "").trim();
+                if (jsonStr === "[DONE]") continue;
+                data = JSON.parse(jsonStr);
+              }
+            }
+
+            if (!data) continue;
+
+            // Normalize message data between formats
+            const msg = isOllama ? data.message : data.choices?.[0]?.delta;
+            
+            // Handle multiple thinking formats:
+            // 1. Ollama: msg.thought
+            // 2. llama.cpp / DeepSeek OpenAI: msg.reasoning_content
+            // 3. Native content-wrapped thoughts (handled by parser)
+            const content = msg?.content || "";
+            const thought = msg?.thought || msg?.reasoning_content || "";
+            
+            if (content || thought) {
               if (activeId !== convId) { reader.cancel(); break; }
+              
+              // Immediately remove the "thinking..." placeholder once real tokens arrive
+              removeThinking();
+              
               if (!agentBubble) agentBubble = addMessageEl("agent", "");
-              fullContent += msg.content;
+              
+              if (thought) {
+                if (!inThought) {
+                  fullContent += "<think>";
+                  inThought = true;
+                }
+                fullContent += thought;
+              } else if (content) {
+                if (inThought) {
+                  fullContent += "</think>";
+                  inThought = false;
+                }
+                fullContent += content;
+              }
+              
               totalContentProduced = true;
-              agentBubble.innerHTML = renderMarkdown(fullContent);
+              
+              // Throttled rendering to keep UI snappy even during high-speed streams
+              const now = Date.now();
+              if (now - lastRenderTime > 80) { // Update roughly 12 times per second
+                agentBubble.innerHTML = renderMarkdown(fullContent);
+                lastRenderTime = now;
+              }
               scrollToBottom();
             }
-            if (msg?.tool_calls) toolCalls = msg.tool_calls;
-          } catch { /* skip */ }
+
+            // Handle tool calls
+            const currentToolCalls = msg?.tool_calls;
+            if (currentToolCalls) {
+              if (isOllama) {
+                // Ollama sends the full tool call at once
+                toolCalls = currentToolCalls;
+              } else {
+                // OpenAI / llama.cpp sends tool calls as deltas that need reassembly
+                currentToolCalls.forEach(delta => {
+                  const idx = delta.index;
+                  if (idx === undefined) return;
+                  if (!streamedToolCalls[idx]) {
+                    streamedToolCalls[idx] = { 
+                      id: "", 
+                      type: "function", 
+                      function: { name: "", arguments: "" } 
+                    };
+                  }
+                  const target = streamedToolCalls[idx];
+                  if (delta.id) target.id += delta.id;
+                  if (delta.function) {
+                    if (delta.function.name) target.function.name += delta.function.name;
+                    if (delta.function.arguments) target.function.arguments += delta.function.arguments;
+                  }
+                });
+                toolCalls = streamedToolCalls;
+              }
+            }
+          } catch (e) {
+            // If it failed to parse, it might be a partial JSON despite our newline split (rare)
+            // but we'll log it and continue.
+            console.warn("Stream parse error", e, trimmedLine);
+          }
         }
+      }
+
+      // Final render pass to ensure the last few tokens are formatted
+      if (agentBubble && totalContentProduced) {
+        agentBubble.innerHTML = renderMarkdown(fullContent);
       }
 
       if (signal.aborted) {
@@ -1909,7 +2212,25 @@ async function runAgent() {
 
       for (const tc of toolCalls) {
         const name = tc.function.name;
-        const args = tc.function.arguments;
+        let args = tc.function.arguments;
+
+        // Ensure args is a parsed object (llama.cpp sends it as a string delta, Ollama sends an object)
+        if (typeof args === "string") {
+          try {
+            args = JSON.parse(args);
+          } catch (e) {
+            console.warn("Tool arg parse failed, attempting lazy fix:", e, args);
+            // If it's a web_search and the AI just sent the query string instead of JSON, we wrap it
+            if (name === "web_search" && args && !args.trim().startsWith("{")) {
+              args = { query: args.trim() };
+            } else {
+              // Otherwise, we have to treat it as an error
+              if (activeId === convId) addMessageEl("agent", `⚠ Failed to parse tool arguments: ${args}`);
+              continue;
+            }
+          }
+        }
+
         const isSearch = name === "web_search";
         const isCmd = name === "run_command";
 
@@ -2044,10 +2365,19 @@ async function updateHUD() {
       const data = await r.json();
       const gEl = document.getElementById("hud-gpu");
       const vEl = document.getElementById("hud-vram");
+      const cEl = document.getElementById("hud-cpu");
+      const rEl = document.getElementById("hud-ram");
+
       gEl.textContent = `${data.gpu}%`;
       vEl.textContent = `${data.vram}%`;
-      gEl.style.color = data.gpu > 90 ? "#c0392b" : data.gpu > 75 ? "#f5a623" : "#2ecc71";
-      vEl.style.color = data.vram > 90 ? "#c0392b" : data.vram > 75 ? "#f5a623" : "#2ecc71";
+      cEl.textContent = `${data.cpu}%`;
+      rEl.textContent = `${data.ram}%`;
+
+      const getColor = (v) => v > 90 ? "#c0392b" : v > 75 ? "#f5a623" : "#2ecc71";
+      gEl.style.color = getColor(data.gpu);
+      vEl.style.color = getColor(data.vram);
+      cEl.style.color = getColor(data.cpu);
+      rEl.style.color = getColor(data.ram);
     }
   } catch {}
 }
@@ -2077,6 +2407,58 @@ async function checkOllama() {
   }
 }
 
+async function checkLlama() {
+  try {
+    // 1. Fetch available files in the Models folder
+    const modelsRes = await fetch(`${BACKEND_URL}/llama/models`);
+    const modelsData = await modelsRes.json();
+    availableProjectors = modelsData.projectors || [];
+    
+    // 2. Fetch actually running models if server is UP
+    let activeModel = null;
+    try {
+      const activeRes = await fetch(`${LLAMA_URL}/v1/models`, { signal: AbortSignal.timeout(1000) });
+      const activeData = await activeRes.json();
+      if (activeData.data?.length > 0) activeModel = activeData.data[0].id;
+    } catch(e) {}
+
+    // 3. Populate select
+    const currentVal = llamaModelSelect.value;
+    llamaModelSelect.innerHTML = "";
+    
+    if (modelsData.models?.length > 0) {
+      modelsData.models.forEach(m => {
+        const opt = document.createElement("option");
+        opt.value = m;
+        opt.textContent = m;
+        if (m === activeModel) opt.selected = true;
+        llamaModelSelect.appendChild(opt);
+      });
+    } else {
+      llamaModelSelect.innerHTML = `<option value="">No models found in folder</option>`;
+    }
+    
+    updateVisionToggle();
+  } catch(e) {
+    llamaModelSelect.innerHTML = `<option value="">Backend offline</option>`;
+  }
+}
+
+function updateVisionToggle() {
+  const selectedModel = llamaModelSelect.value;
+  // Simple heuristic: if it's gemma4 or model name implies vision
+  const hasProjector = availableProjectors.some(p => p.toLowerCase().includes("gemma4") && selectedModel.toLowerCase().includes("gemma4"));
+  
+  if (hasProjector || selectedModel.toLowerCase().includes("vision")) {
+    llamaVisionWrap.style.display = "flex";
+  } else {
+    llamaVisionWrap.style.display = "none";
+    llamaVisionToggle.checked = false;
+  }
+}
+
+llamaModelSelect.addEventListener("change", updateVisionToggle);
+
 async function checkBackend() {
   try {
     const r = await fetch(`${BACKEND_URL}/health`, { signal: AbortSignal.timeout(2000) });
@@ -2088,10 +2470,146 @@ async function checkBackend() {
   }
 }
 
+// ── Provider selection & VRAM Management ──
+const ollamaToggle = document.getElementById("ollama-toggle");
+const llamaToggle = document.getElementById("llama-toggle");
+const ollamaStatusLabel = document.getElementById("ollama-status");
+const llamaStatusLabel = document.getElementById("llama-status");
+
+async function activateProvider(provider) {
+  if (provider === "ollama") {
+    // Unload llama.cpp first to save VRAM
+    llamaStatusLabel.textContent = "STOPPING...";
+    llamaToggle.checked = false;
+    await fetch(`${BACKEND_URL}/llama/stop`, { method: "POST" });
+    llamaStatusLabel.textContent = "OFF";
+    
+    currentProvider = "ollama";
+    ollamaToggle.checked = true;
+    ollamaStatusLabel.textContent = "ON";
+  } else {
+    // Unload Ollama first to save VRAM
+    ollamaStatusLabel.textContent = "UNLOADING...";
+    ollamaToggle.checked = false;
+    
+    // Check which Ollama models are actually loaded to avoid forcing a load just to unload
+    try {
+      const psRes = await fetch(`${OLLAMA_URL}/api/ps`);
+      const psData = await psRes.json();
+      if (psData.models && psData.models.length > 0) {
+        for (const loadedModel of psData.models) {
+          await fetch(`${OLLAMA_URL}/api/generate`, {
+            method: "POST",
+            body: JSON.stringify({ model: loadedModel.name, prompt: "", keep_alive: 0 })
+          });
+        }
+      }
+    } catch(e) { console.warn("Failed to unload Ollama models", e) }
+    ollamaStatusLabel.textContent = "OFF";
+    
+    // Start llama.cpp
+    llamaStatusLabel.textContent = "STARTING...";
+    llamaToggle.checked = true;
+    
+    const selectedModel = llamaModelSelect.value;
+    const isVision = llamaVisionToggle.checked;
+    // Find corresponding projector
+    const projector = isVision ? availableProjectors.find(p => p.toLowerCase().includes("gemma4") && selectedModel.toLowerCase().includes("gemma4")) : null;
+
+    const res = await fetch(`${BACKEND_URL}/llama/start`, { 
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ 
+        model: selectedModel,
+        mmproj: projector
+      })
+    });
+    const data = await res.json();
+    
+    currentProvider = "llama";
+    if (data.success) {
+      // Poll until llama.cpp finishes loading the heavy model into VRAM
+      let attempts = 0;
+      const pollInterval = setInterval(async () => {
+        attempts++;
+        try {
+          const r = await fetch('http://127.0.0.1:8080/v1/models', { signal: AbortSignal.timeout(2000) });
+          if (r.ok) {
+            clearInterval(pollInterval);
+            llamaStatusLabel.textContent = "ON";
+            checkLlama();
+          }
+        } catch(e) {}
+        
+        // Give up after roughly 60 seconds
+        if (attempts > 30) {
+          clearInterval(pollInterval);
+          llamaStatusLabel.textContent = "ERROR";
+          checkLlama();
+        }
+      }, 2000);
+    } else {
+      llamaStatusLabel.textContent = "ERROR";
+      showSystemMsg(`Failed to start llama.cpp: ${data.message}`);
+    }
+  }
+  updateProviderUI();
+}
+
+ollamaToggle.addEventListener("change", () => {
+  if (ollamaToggle.checked) activateProvider("ollama");
+  else activateProvider("llama");
+});
+
+llamaToggle.addEventListener("change", () => {
+  if (llamaToggle.checked) activateProvider("llama");
+  else activateProvider("ollama");
+});
+
+function updateProviderUI() {
+  document.querySelectorAll(".provider-group").forEach(g => g.classList.remove("active"));
+  const activeGroup = currentProvider === "ollama" ? "group-ollama" : "group-llama";
+  document.getElementById(activeGroup).classList.add("active");
+  localStorage.setItem("ph3d_provider", currentProvider);
+}
+
+modelSelect.addEventListener("change", () => {
+  if (currentProvider !== "ollama") activateProvider("ollama");
+});
+
+llamaModelSelect.addEventListener("change", () => {
+  if (currentProvider !== "llama") activateProvider("llama");
+});
+
+// Sync status on boot
+async function syncProviderStatus() {
+  try {
+    const res = await fetch(`${BACKEND_URL}/llama/status`);
+    const data = await res.json();
+    if (data.running) {
+      currentProvider = "llama";
+      llamaToggle.checked = true;
+      ollamaToggle.checked = false;
+      llamaStatusLabel.textContent = "ON";
+      ollamaStatusLabel.textContent = "OFF";
+    } else {
+      currentProvider = "ollama";
+      ollamaToggle.checked = true;
+      llamaToggle.checked = false;
+      ollamaStatusLabel.textContent = "ON";
+      llamaStatusLabel.textContent = "OFF";
+    }
+  } catch(e) {}
+  updateProviderUI();
+}
+
 // ── Init ──
+syncProviderStatus();
 checkOllama();
+checkLlama();
 checkBackend();
 setInterval(checkBackend, 10000);
+setInterval(syncProviderStatus, 15000); // periodically sync in case of crashes
 buildPresets();
 updatePersonalityBadge();
 
